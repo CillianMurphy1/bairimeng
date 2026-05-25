@@ -23,11 +23,11 @@ final class PaymentParser {
     ));
 
     private static final Pattern AMOUNT_PATTERN = Pattern.compile(
-            "(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)(?:\\.([0-9]{1,2}))?\\s*元?");
+            "(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.([0-9]{1,2}))?(?![0-9,.])\\s*元?");
     private static final Pattern LABELED_AMOUNT_PATTERN = Pattern.compile(
-            "(?:实付|实付款|支付金额|付款金额|订单金额|合计|共计|扣款金额|消费金额|交易金额|支出金额|入账金额|到账金额)[:：\\s]*(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)(?:\\.([0-9]{1,2}))?\\s*元?");
+            "(?:实付|实付款|支付金额|付款金额|订单金额|合计|共计|扣款金额|消费金额|交易金额|支出金额|入账金额|到账金额)[:：\\s]*(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.([0-9]{1,2}))?(?![0-9,.])\\s*元?");
     private static final Pattern BANK_AMOUNT_PATTERN = Pattern.compile(
-            "(?:动账|交易|消费|支出|扣款|付款|支付|入账|到账|转入)[^0-9￥¥]{0,24}(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)(?:\\.([0-9]{1,2}))?\\s*元?");
+            "(?:动账|交易|消费|支出|扣款|付款|支付|入账|到账|转入)[^0-9￥¥]{0,24}(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.([0-9]{1,2}))?(?![0-9,.])\\s*元?");
     private static final Pattern MERCHANT_PAY_TO = Pattern.compile("(?:支付给|付款给|转账给|向)([^，,。；;\\n]{2,24})");
     private static final Pattern MERCHANT_LABEL = Pattern.compile("(?:商户|收款方|对方|店铺)[:：\\s]+([^，,。；;\\n]{2,24})");
     private static final Pattern TAOBAO_SUCCESS_TITLE = Pattern.compile("支付成功\\s+(.{2,50}?)(?:\\s+查看订单|\\s+本单奖励|\\s+该宝贝|$)");
