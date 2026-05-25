@@ -1,0 +1,7 @@
+<resources>
+    <color name="ink">#18201F</color>
+    <color name="paper">#F7F5EF</color>
+    <color name="panel">#FFFFFF</color>
+    <color name="accent">#177E6B</color>
+    <color name="warning">#B14F24</color>
+</resources>

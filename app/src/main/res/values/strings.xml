@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">白日夢新版</string>
+    <string name="listener_name">白日夢支付通知识别</string>
+    <string name="accessibility_service_name">白日夢支付页面识别</string>
+    <string name="accessibility_service_desc">读取微信和支付宝支付完成页的文字，用于本地识别金额、账户和分类。</string>
+</resources>

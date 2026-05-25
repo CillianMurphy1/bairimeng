@@ -1,0 +1,17 @@
+.gradle/
+.claude/
+.tools/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+references/
+analysis_qianji_*.txt
+installed-current-base.apk
+old-personal_ledger.db
+v2-current-ledger.db
+*.apk
+*.db
+*.jks
+*.keystore
