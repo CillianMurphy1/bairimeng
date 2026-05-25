@@ -24,6 +24,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".RemoveAccountActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".SearchActivity"
             android:exported="false" />
 

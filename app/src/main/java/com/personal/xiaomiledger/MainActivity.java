@@ -296,6 +296,10 @@ public class MainActivity extends Activity {
         add.setGravity(Gravity.CENTER);
         add.setOnClickListener(v -> startActivity(new Intent(this, AddAccountActivity.class)));
         header.addView(add, new LinearLayout.LayoutParams(Ui.dp(this, 42), Ui.dp(this, 42)));
+        TextView remove = Ui.text(this, "-", 26, Ui.WARNING, Typeface.BOLD);
+        remove.setGravity(Gravity.CENTER);
+        remove.setOnClickListener(v -> startActivity(new Intent(this, RemoveAccountActivity.class)));
+        header.addView(remove, new LinearLayout.LayoutParams(Ui.dp(this, 42), Ui.dp(this, 42)));
         TextView total = Ui.text(this, TransactionStore.formatMoneySigned(store.totalByKind("asset")) + "⌄", 22, Color.BLACK, Typeface.BOLD);
         total.setGravity(Gravity.END);
         header.addView(total);

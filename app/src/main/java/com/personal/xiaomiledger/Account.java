@@ -7,6 +7,7 @@ final class Account {
     String accountType;
     String currency;
     boolean includeInTotal;
+    boolean active;
     long balanceCents;
     long creditLimitCents;
     int billDate;

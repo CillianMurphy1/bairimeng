@@ -14,7 +14,7 @@ import java.util.Locale;
 
 final class TransactionStore extends SQLiteOpenHelper {
     private static final String DB_NAME = "personal_ledger.db";
-    private static final int DB_VERSION = 3;
+    private static final int DB_VERSION = 4;
 
     TransactionStore(Context context) {
         super(context.getApplicationContext(), DB_NAME, null, DB_VERSION);
@@ -52,6 +52,10 @@ final class TransactionStore extends SQLiteOpenHelper {
             safeAddColumn(db, "accounts", "due_date INTEGER NOT NULL DEFAULT 0");
             seedDefaultBook(db);
             seedDefaultCategories(db);
+        }
+        if (oldVersion < 4) {
+            createAll(db);
+            safeAddColumn(db, "accounts", "is_active INTEGER NOT NULL DEFAULT 1");
         }
     }
 
@@ -97,6 +101,7 @@ final class TransactionStore extends SQLiteOpenHelper {
                 "account_type TEXT NOT NULL DEFAULT 'asset'," +
                 "currency TEXT NOT NULL DEFAULT 'CNY'," +
                 "include_in_total INTEGER NOT NULL DEFAULT 1," +
+                "is_active INTEGER NOT NULL DEFAULT 1," +
                 "balance_cents INTEGER NOT NULL DEFAULT 0," +
                 "credit_limit_cents INTEGER NOT NULL DEFAULT 0," +
                 "bill_date INTEGER NOT NULL DEFAULT 0," +
@@ -186,6 +191,7 @@ final class TransactionStore extends SQLiteOpenHelper {
             values.put("account_type", rows[i][1]);
             values.put("currency", "CNY");
             values.put("include_in_total", 1);
+            values.put("is_active", 1);
             values.put("balance_cents", 0);
             values.put("sort_order", i + 1);
             values.put("created_at", System.currentTimeMillis());
@@ -274,10 +280,27 @@ final class TransactionStore extends SQLiteOpenHelper {
         values.put("account_type", accountType == null || accountType.trim().length() == 0 ? "asset" : accountType.trim());
         values.put("currency", "CNY");
         values.put("include_in_total", 1);
+        values.put("is_active", 1);
         values.put("balance_cents", 0);
         values.put("sort_order", 90 + accounts().size());
         values.put("created_at", System.currentTimeMillis());
         getWritableDatabase().insertWithOnConflict("accounts", null, values, SQLiteDatabase.CONFLICT_IGNORE);
+        ContentValues update = new ContentValues();
+        update.put("account_type", values.getAsString("account_type"));
+        update.put("include_in_total", 1);
+        update.put("is_active", 1);
+        getWritableDatabase().update("accounts", update, "name=?", new String[]{cleanName});
+    }
+
+    boolean hideAccount(String name) {
+        String cleanName = name == null ? "" : name.trim();
+        if (cleanName.length() == 0 || "未确认账户".equals(cleanName)) {
+            return false;
+        }
+        ContentValues values = new ContentValues();
+        values.put("is_active", 0);
+        values.put("include_in_total", 0);
+        return getWritableDatabase().update("accounts", values, "name=?", new String[]{cleanName}) > 0;
     }
 
     String inferAccount(String rawText, String sourceApp) {
@@ -383,7 +406,7 @@ final class TransactionStore extends SQLiteOpenHelper {
     List<Account> accounts() {
         ArrayList<Account> results = new ArrayList<>();
         try (Cursor cursor = getReadableDatabase().query(
-                "accounts", null, null, null, null, null, "sort_order ASC, id ASC")) {
+                "accounts", null, "is_active=1", null, null, null, "sort_order ASC, id ASC")) {
             while (cursor.moveToNext()) {
                 Account account = new Account();
                 account.id = cursor.getLong(cursor.getColumnIndexOrThrow("id"));
@@ -392,6 +415,7 @@ final class TransactionStore extends SQLiteOpenHelper {
                 account.accountType = cursor.getString(cursor.getColumnIndexOrThrow("account_type"));
                 account.currency = cursor.getString(cursor.getColumnIndexOrThrow("currency"));
                 account.includeInTotal = cursor.getInt(cursor.getColumnIndexOrThrow("include_in_total")) == 1;
+                account.active = cursor.getInt(cursor.getColumnIndexOrThrow("is_active")) == 1;
                 account.balanceCents = cursor.getLong(cursor.getColumnIndexOrThrow("balance_cents"));
                 account.creditLimitCents = cursor.getLong(cursor.getColumnIndexOrThrow("credit_limit_cents"));
                 account.billDate = cursor.getInt(cursor.getColumnIndexOrThrow("bill_date"));
@@ -449,7 +473,7 @@ final class TransactionStore extends SQLiteOpenHelper {
 
     long totalByKind(String kind) {
         try (Cursor cursor = getReadableDatabase().rawQuery(
-                "SELECT COALESCE(SUM(balance_cents), 0) FROM accounts WHERE kind=? AND include_in_total=1",
+                "SELECT COALESCE(SUM(balance_cents), 0) FROM accounts WHERE kind=? AND include_in_total=1 AND is_active=1",
                 new String[]{kind})) {
             if (cursor.moveToFirst()) {
                 return cursor.getLong(0);
@@ -633,6 +657,7 @@ final class TransactionStore extends SQLiteOpenHelper {
         values.put("account_type", "asset");
         values.put("currency", "CNY");
         values.put("include_in_total", 1);
+        values.put("is_active", 1);
         values.put("balance_cents", 0);
         values.put("sort_order", 99);
         values.put("created_at", System.currentTimeMillis());
