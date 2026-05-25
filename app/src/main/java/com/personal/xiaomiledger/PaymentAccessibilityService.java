@@ -51,6 +51,8 @@ public class PaymentAccessibilityService extends AccessibilityService {
             return;
         }
         String raw = collectText(root);
+        PaymentContextStore.rememberIfUseful(this, packageName, raw,
+                event.getEventTime() > 0 ? event.getEventTime() : System.currentTimeMillis());
         if (!looksLikePaymentResult(packageName, raw)) {
             return;
         }

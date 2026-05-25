@@ -94,7 +94,7 @@ final class AutoSaveManager {
             return ClassificationRules.inferCategory(rawText, "", "", type);
         }
         String text = rawText == null ? "" : rawText;
-        if (text.contains("红包")) return "发红包";
+        if (text.contains("红包") || text.contains("塞钱进红包") || text.contains("发红包")) return "发红包";
         if (text.contains("微信") || text.contains("财付通")) return "其它";
         if (text.contains("支付宝") || text.contains("淘宝") || text.contains("天猫")) return "日用品";
         if (text.contains("美团") || text.contains("饿了么") || text.contains("外卖")) return "三餐";
