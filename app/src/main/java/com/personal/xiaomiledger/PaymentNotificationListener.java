@@ -13,17 +13,34 @@ public class PaymentNotificationListener extends NotificationListenerService {
     private static final int MAX_RECENT = 80;
 
     @Override
+    public void onListenerConnected() {
+        super.onListenerConnected();
+        StatusBarNotification[] activeNotifications = getActiveNotifications();
+        if (activeNotifications == null) {
+            return;
+        }
+        for (StatusBarNotification sbn : activeNotifications) {
+            handleNotification(sbn, true);
+        }
+    }
+
+    @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
+        handleNotification(sbn, false);
+    }
+
+    private void handleNotification(StatusBarNotification sbn, boolean fromActiveScan) {
         ParsedPayment payment = PaymentParser.parse(sbn);
         if (payment == null) {
             return;
         }
         TransactionStore store = new TransactionStore(this);
-        if (store.hasNotificationKey(payment.notificationKey) || isRecentlySeen(payment.notificationKey)) {
+        if (store.hasNotificationKey(payment.notificationKey)
+                || (!fromActiveScan && isRecentlySeen(payment.notificationKey))) {
             store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText, "重复通知，已忽略", payment.amountCents);
             return;
         }
-        if (RecentPaymentGate.shouldSkipAndRemember(this, payment)) {
+        if (!fromActiveScan && RecentPaymentGate.shouldSkipAndRemember(this, payment)) {
             store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText, "近期已由其他方式识别，已忽略", payment.amountCents);
             return;
         }
@@ -31,7 +48,7 @@ public class PaymentNotificationListener extends NotificationListenerService {
         String category = ClassificationRules.inferCategory(payment.rawText, payment.sourceApp, payment.merchant, payment.type);
         String account = store.inferAccount(payment.rawText, payment.sourceApp);
         store.logAutoRecord("recognized", payment.sourceApp, payment.rawText,
-                "已识别：" + category + " / " + account, payment.amountCents);
+                (fromActiveScan ? "补扫识别：" : "已识别：") + category + " / " + account, payment.amountCents);
         if (AutoSaveManager.tryAutoSave(this, store, payment)) {
             return;
         }
