@@ -1,6 +1,8 @@
 package com.personal.xiaomiledger;
 
 import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -18,6 +20,8 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public class AdjustBalanceActivity extends Activity {
+    static final String EXTRA_ACCOUNT = "account";
+
     private Spinner accountSpinner;
     private EditText balanceInput;
     private TransactionStore store;
@@ -28,6 +32,12 @@ public class AdjustBalanceActivity extends Activity {
         getWindow().setStatusBarColor(Ui.PAPER);
         store = new TransactionStore(this);
         buildUi();
+    }
+
+    static Intent intentForAccount(Context context, String accountName) {
+        Intent intent = new Intent(context, AdjustBalanceActivity.class);
+        intent.putExtra(EXTRA_ACCOUNT, accountName);
+        return intent;
     }
 
     private void buildUi() {
@@ -52,6 +62,7 @@ public class AdjustBalanceActivity extends Activity {
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, accountNames);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         accountSpinner.setAdapter(adapter);
+        selectSpinner(accountSpinner, getIntent().getStringExtra(EXTRA_ACCOUNT));
         accountSpinner.setBackground(Ui.strokeBg(this, Color.WHITE, 12, Ui.LINE));
         card.addView(accountSpinner);
 
@@ -92,6 +103,19 @@ public class AdjustBalanceActivity extends Activity {
         params.setMargins(0, Ui.dp(this, 12), 0, Ui.dp(this, 4));
         label.setLayoutParams(params);
         return label;
+    }
+
+    private void selectSpinner(Spinner spinner, String value) {
+        if (value == null || value.length() == 0 || spinner.getAdapter() == null) {
+            return;
+        }
+        for (int i = 0; i < spinner.getAdapter().getCount(); i++) {
+            Object item = spinner.getAdapter().getItem(i);
+            if (value.equals(String.valueOf(item))) {
+                spinner.setSelection(i);
+                return;
+            }
+        }
     }
 
     private void save() {

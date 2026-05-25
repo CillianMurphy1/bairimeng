@@ -311,7 +311,7 @@ public class MainActivity extends Activity {
     private LinearLayout accountRow(Account account) {
         LinearLayout row = Ui.row(this);
         row.setPadding(0, Ui.dp(this, 13), 0, Ui.dp(this, 13));
-        row.setOnClickListener(v -> startActivity(new Intent(this, AdjustBalanceActivity.class)));
+        row.setOnClickListener(v -> startActivity(AdjustBalanceActivity.intentForAccount(this, account.name)));
         TextView icon = Ui.text(this, accountInitial(account.name), 19, Color.WHITE, Typeface.BOLD);
         icon.setGravity(Gravity.CENTER);
         icon.setBackground(Ui.bg(this, accountColor(account.name), 999));

@@ -55,7 +55,7 @@ final class PaymentParser {
         if (raw.length() == 0) {
             return null;
         }
-        String type = detectType(raw);
+        String type = isBankPackage(packageName) ? detectBankType(raw) : detectType(raw);
         if (type == null && isBankPackage(packageName) && looksLikeBankMovement(raw)) {
             type = "expense";
         }
@@ -105,7 +105,10 @@ final class PaymentParser {
         if (raw.length() == 0) {
             return null;
         }
-        String type = detectType(raw);
+        String type = isBankPackage(packageName) ? detectBankType(raw) : detectType(raw);
+        if (type == null && isBankPackage(packageName) && looksLikeBankMovement(raw)) {
+            type = "expense";
+        }
         if (type == null) {
             return null;
         }
@@ -143,11 +146,26 @@ final class PaymentParser {
     }
 
     private static String detectType(String raw) {
+        if (containsAny(raw, "到账", "入账", "收到转账", "转入", "退款", "收入", "收款到账")) {
+            return "income";
+        }
         if (containsAny(raw, "支付", "付款", "消费", "扣款", "支出", "已付", "交易成功", "扫码", "动账提醒")) {
             return "expense";
         }
-        if (containsAny(raw, "到账", "入账", "收到转账", "转入", "退款", "收入", "收款到账")) {
+        return null;
+    }
+
+    private static String detectBankType(String raw) {
+        if (containsAny(raw,
+                "入账", "到账", "收款", "收入", "转入", "收到", "贷记", "来账", "存入", "退款", "充值")) {
             return "income";
+        }
+        if (containsAny(raw,
+                "扣款", "消费", "支出", "付款", "支付", "转出", "借记", "快捷支付", "取现", "缴费")) {
+            return "expense";
+        }
+        if (containsAny(raw, "动账提醒", "动账", "账户变动", "交易提醒")) {
+            return "expense";
         }
         return null;
     }

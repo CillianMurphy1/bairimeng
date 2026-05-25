@@ -20,7 +20,8 @@ final class AutoSaveManager {
     }
 
     static boolean tryAutoSave(Context context, TransactionStore store, ParsedPayment payment) {
-        if (!isAutoSaveEnabled(context) && !isBankPayment(payment)) {
+        boolean trustedAutoSource = isBankPayment(payment) || isExplicitWalletPayment(payment);
+        if (!isAutoSaveEnabled(context) && !trustedAutoSource) {
             return false;
         }
         if (payment.amountCents <= 0) {
@@ -33,7 +34,7 @@ final class AutoSaveManager {
         }
         if (isBankPayment(payment)) {
             category = bankCategory(payment.rawText, payment.type);
-        } else if ("其它".equals(category)) {
+        } else if (!isExplicitWalletPayment(payment) && "其它".equals(category)) {
             return false;
         }
 
@@ -62,6 +63,18 @@ final class AutoSaveManager {
     private static boolean isBankPayment(ParsedPayment payment) {
         String source = payment.sourceApp == null ? "" : payment.sourceApp;
         return "中国银行".equals(source) || "交通银行".equals(source) || "招商银行".equals(source);
+    }
+
+    private static boolean isExplicitWalletPayment(ParsedPayment payment) {
+        String source = payment.sourceApp == null ? "" : payment.sourceApp;
+        String raw = payment.rawText == null ? "" : payment.rawText;
+        if ("微信".equals(source)) {
+            return raw.contains("零钱") || raw.contains("零钱通") || raw.contains("微信零钱");
+        }
+        if ("支付宝".equals(source)) {
+            return raw.contains("支付宝余额") || raw.contains("余额宝") || raw.contains("余额支付");
+        }
+        return false;
     }
 
     private static String bankCategory(String rawText, String type) {
