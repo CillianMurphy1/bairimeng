@@ -225,6 +225,76 @@ final class TransactionStore extends SQLiteOpenHelper {
         return result;
     }
 
+    boolean update(Transaction transaction) {
+        if (transaction == null || transaction.id <= 0) {
+            return false;
+        }
+        SQLiteDatabase db = getWritableDatabase();
+        Transaction old = transactionById(transaction.id);
+        if (old == null) {
+            return false;
+        }
+        normalizeTransaction(transaction);
+        transaction.createdAt = old.createdAt;
+        transaction.notificationKey = old.notificationKey;
+        db.beginTransaction();
+        try {
+            applyTransactionToAccount(db, old, -1);
+            int rows = db.update("transactions", transactionValues(transaction), "id=?",
+                    new String[]{String.valueOf(transaction.id)});
+            if (rows > 0) {
+                applyTransactionToAccount(db, transaction, 1);
+            }
+            db.setTransactionSuccessful();
+            return rows > 0;
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    Transaction transactionById(long id) {
+        try (Cursor cursor = getReadableDatabase().query(
+                "transactions", null, "id=?", new String[]{String.valueOf(id)},
+                null, null, null, "1")) {
+            if (cursor.moveToFirst()) {
+                return fromCursor(cursor);
+            }
+        }
+        return null;
+    }
+
+    void addAccount(String name, String accountType) {
+        String cleanName = name == null ? "" : name.trim();
+        if (cleanName.length() == 0 || "未确认账户".equals(cleanName)) {
+            return;
+        }
+        ContentValues values = new ContentValues();
+        values.put("name", cleanName);
+        values.put("kind", "asset");
+        values.put("account_type", accountType == null || accountType.trim().length() == 0 ? "asset" : accountType.trim());
+        values.put("currency", "CNY");
+        values.put("include_in_total", 1);
+        values.put("balance_cents", 0);
+        values.put("sort_order", 90 + accounts().size());
+        values.put("created_at", System.currentTimeMillis());
+        getWritableDatabase().insertWithOnConflict("accounts", null, values, SQLiteDatabase.CONFLICT_IGNORE);
+    }
+
+    String inferAccount(String rawText, String sourceApp) {
+        String account = ClassificationRules.inferAccount(rawText, sourceApp);
+        if (!"未确认账户".equals(account)) {
+            return account;
+        }
+        String text = ((rawText == null ? "" : rawText) + " " + (sourceApp == null ? "" : sourceApp)).toLowerCase(Locale.CHINA);
+        for (Account candidate : accounts()) {
+            String name = candidate.name == null ? "" : candidate.name.trim();
+            if (name.length() > 0 && text.contains(name.toLowerCase(Locale.CHINA))) {
+                return name;
+            }
+        }
+        return account;
+    }
+
     long setAccountBalance(String accountName, long newBalanceCents) {
         SQLiteDatabase db = getWritableDatabase();
         ensureAccount(db, accountName);
@@ -517,6 +587,10 @@ final class TransactionStore extends SQLiteOpenHelper {
     }
 
     private void applyTransactionToAccount(SQLiteDatabase db, Transaction transaction) {
+        applyTransactionToAccount(db, transaction, 1);
+    }
+
+    private void applyTransactionToAccount(SQLiteDatabase db, Transaction transaction, int direction) {
         if (transaction.accountName == null
                 || transaction.accountName.length() == 0
                 || "未确认账户".equals(transaction.accountName)
@@ -529,9 +603,9 @@ final class TransactionStore extends SQLiteOpenHelper {
             if (toAccount != null && toAccount.length() > 0 && !transaction.accountName.equals(toAccount)) {
                 ensureAccount(db, toAccount);
                 db.execSQL("UPDATE accounts SET balance_cents=balance_cents-? WHERE name=?",
-                        new Object[]{transaction.amountCents, transaction.accountName});
+                        new Object[]{transaction.amountCents * direction, transaction.accountName});
                 db.execSQL("UPDATE accounts SET balance_cents=balance_cents+? WHERE name=?",
-                        new Object[]{transaction.amountCents, toAccount});
+                        new Object[]{transaction.amountCents * direction, toAccount});
             }
             return;
         }
@@ -545,7 +619,7 @@ final class TransactionStore extends SQLiteOpenHelper {
         }
         if (delta != 0) {
             db.execSQL("UPDATE accounts SET balance_cents=balance_cents+? WHERE name=?",
-                    new Object[]{delta, transaction.accountName});
+                    new Object[]{delta * direction, transaction.accountName});
         }
     }
 

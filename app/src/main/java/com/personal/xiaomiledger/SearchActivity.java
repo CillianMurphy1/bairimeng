@@ -186,6 +186,7 @@ public class SearchActivity extends Activity {
     private LinearLayout billRow(Transaction tx) {
         LinearLayout row = Ui.row(this);
         row.setPadding(0, Ui.dp(this, 11), 0, Ui.dp(this, 11));
+        row.setOnClickListener(v -> openTransaction(tx));
         TextView icon = Ui.text(this, billIcon(tx), 19, billColor(tx), Typeface.BOLD);
         icon.setGravity(Gravity.CENTER);
         icon.setBackground(Ui.bg(this, billBg(tx), 999));
@@ -200,6 +201,14 @@ public class SearchActivity extends Activity {
         amount.setGravity(Gravity.END);
         row.addView(amount);
         return row;
+    }
+
+    private void openTransaction(Transaction tx) {
+        if ("income".equals(tx.type) || "expense".equals(tx.type) || "refund".equals(tx.type)) {
+            startActivity(EditTransactionActivity.intentForTransaction(this, tx.id));
+        } else if ("adjustment".equals(tx.type)) {
+            startActivity(AdjustBalanceActivity.intentForAccount(this, tx.accountName));
+        }
     }
 
     private String title(Transaction tx) {

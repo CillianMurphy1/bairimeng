@@ -70,7 +70,7 @@ public class PaymentAccessibilityService extends AccessibilityService {
         }
 
         String category = ClassificationRules.inferCategory(payment.rawText, payment.sourceApp, payment.merchant, payment.type);
-        String account = ClassificationRules.inferAccount(payment.rawText, payment.sourceApp);
+        String account = store.inferAccount(payment.rawText, payment.sourceApp);
         store.logAutoRecord("recognized", payment.sourceApp, payment.rawText,
                 "无障碍识别：" + category + " / " + account, payment.amountCents);
         lastLaunchAt = now;
@@ -138,7 +138,8 @@ public class PaymentAccessibilityService extends AccessibilityService {
 
     private View buildOverlay(ParsedPayment payment) {
         String category = ClassificationRules.inferCategory(payment.rawText, payment.sourceApp, payment.merchant, payment.type);
-        String account = ClassificationRules.inferAccount(payment.rawText, payment.sourceApp);
+        TransactionStore store = new TransactionStore(this);
+        String account = store.inferAccount(payment.rawText, payment.sourceApp);
         int actionColor = "income".equals(payment.type) ? Color.rgb(44, 188, 128) : Ui.WARNING;
 
         LinearLayout shell = new LinearLayout(this);

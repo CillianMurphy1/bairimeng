@@ -25,7 +25,7 @@ final class PaymentParser {
     private static final Pattern AMOUNT_PATTERN = Pattern.compile(
             "(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.([0-9]{1,2}))?(?![0-9,.])\\s*元?");
     private static final Pattern LABELED_AMOUNT_PATTERN = Pattern.compile(
-            "(?:实付|实付款|支付金额|付款金额|订单金额|合计|共计|扣款金额|消费金额|交易金额|支出金额|入账金额|到账金额)[:：\\s]*(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.([0-9]{1,2}))?(?![0-9,.])\\s*元?");
+            "(?:实付|实付款|支付金额|付款金额|订单金额|合计|共计|扣款金额|消费金额|交易金额|支出金额|入账金额|到账金额|退款金额)[:：\\s]*(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.([0-9]{1,2}))?(?![0-9,.])\\s*元?");
     private static final Pattern BANK_AMOUNT_PATTERN = Pattern.compile(
             "(?:动账|交易|消费|支出|扣款|付款|支付|入账|到账|转入)[^0-9￥¥]{0,24}(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.([0-9]{1,2}))?(?![0-9,.])\\s*元?");
     private static final Pattern MERCHANT_PAY_TO = Pattern.compile("(?:支付给|付款给|转账给|向)([^，,。；;\\n]{2,24})");
@@ -40,9 +40,6 @@ final class PaymentParser {
             return null;
         }
         String packageName = sbn.getPackageName();
-        if (!WATCHED_PACKAGES.contains(packageName)) {
-            return null;
-        }
 
         Notification notification = sbn.getNotification();
         Bundle extras = notification.extras;
@@ -55,8 +52,13 @@ final class PaymentParser {
         if (raw.length() == 0) {
             return null;
         }
+        boolean watchedPackage = WATCHED_PACKAGES.contains(packageName);
+        boolean bankMovementPackage = !watchedPackage && looksLikeBankMovement(raw);
+        if (!watchedPackage && !bankMovementPackage) {
+            return null;
+        }
         String type = isBankPackage(packageName) ? detectBankType(raw) : detectType(raw);
-        if (type == null && isBankPackage(packageName) && looksLikeBankMovement(raw)) {
+        if (type == null && (isBankPackage(packageName) || bankMovementPackage) && looksLikeBankMovement(raw)) {
             type = "expense";
         }
         if (type == null) {
@@ -64,10 +66,10 @@ final class PaymentParser {
         }
         Long amountCents = "com.taobao.taobao".equals(packageName)
                 ? findLabeledAmount(raw)
-                : (isBankPackage(packageName) ? findBankAmount(raw) : findPreferredAmount(raw));
+                : ((isBankPackage(packageName) || bankMovementPackage) ? findBankAmount(raw) : findPreferredAmount(raw));
         if (amountCents == null) {
             if (("com.taobao.taobao".equals(packageName) && raw.contains("支付成功"))
-                    || (isBankPackage(packageName) && looksLikeBankMovement(raw))) {
+                    || ((isBankPackage(packageName) || bankMovementPackage) && looksLikeBankMovement(raw))) {
                 amountCents = 0L;
             } else {
                 return null;
@@ -98,15 +100,17 @@ final class PaymentParser {
     }
 
     static ParsedPayment parseRawText(String packageName, String rawText, long occurredAt) {
-        if (!WATCHED_PACKAGES.contains(packageName)) {
+        boolean watchedPackage = WATCHED_PACKAGES.contains(packageName);
+        boolean bankMovementPackage = !watchedPackage && looksLikeBankMovement(rawText == null ? "" : rawText);
+        if (!watchedPackage && !bankMovementPackage) {
             return null;
         }
         String raw = normalize(rawText);
         if (raw.length() == 0) {
             return null;
         }
-        String type = isBankPackage(packageName) ? detectBankType(raw) : detectType(raw);
-        if (type == null && isBankPackage(packageName) && looksLikeBankMovement(raw)) {
+        String type = (isBankPackage(packageName) || bankMovementPackage) ? detectBankType(raw) : detectType(raw);
+        if (type == null && (isBankPackage(packageName) || bankMovementPackage) && looksLikeBankMovement(raw)) {
             type = "expense";
         }
         if (type == null) {
@@ -114,7 +118,7 @@ final class PaymentParser {
         }
         Long amountCents = "com.taobao.taobao".equals(packageName)
                 ? findLabeledAmount(raw)
-                : (isBankPackage(packageName) ? findBankAmount(raw) : findPreferredAmount(raw));
+                : ((isBankPackage(packageName) || bankMovementPackage) ? findBankAmount(raw) : findPreferredAmount(raw));
         if (amountCents == null) {
             if ("com.taobao.taobao".equals(packageName) && raw.contains("支付成功")) {
                 amountCents = 0L;
@@ -146,7 +150,7 @@ final class PaymentParser {
     }
 
     private static String detectType(String raw) {
-        if (containsAny(raw, "到账", "入账", "收到转账", "转入", "退款", "收入", "收款到账")) {
+        if (containsAny(raw, "到账", "入账", "收到转账", "转入", "退款", "收入", "收款到账", "退款到账", "退回零钱")) {
             return "income";
         }
         if (containsAny(raw, "支付", "付款", "消费", "扣款", "支出", "已付", "交易成功", "扫码", "动账提醒")) {

@@ -29,7 +29,7 @@ public class PaymentNotificationListener extends NotificationListenerService {
         }
         remember(payment.notificationKey);
         String category = ClassificationRules.inferCategory(payment.rawText, payment.sourceApp, payment.merchant, payment.type);
-        String account = ClassificationRules.inferAccount(payment.rawText, payment.sourceApp);
+        String account = store.inferAccount(payment.rawText, payment.sourceApp);
         store.logAutoRecord("recognized", payment.sourceApp, payment.rawText,
                 "已识别：" + category + " / " + account, payment.amountCents);
         if (AutoSaveManager.tryAutoSave(this, store, payment)) {

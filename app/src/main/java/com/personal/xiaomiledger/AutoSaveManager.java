@@ -20,7 +20,7 @@ final class AutoSaveManager {
     }
 
     static boolean tryAutoSave(Context context, TransactionStore store, ParsedPayment payment) {
-        boolean trustedAutoSource = isBankPayment(payment) || isExplicitWalletPayment(payment);
+        boolean trustedAutoSource = isBankPayment(payment) || isBankMovement(payment) || isExplicitWalletPayment(payment);
         if (!isAutoSaveEnabled(context) && !trustedAutoSource) {
             return false;
         }
@@ -28,11 +28,11 @@ final class AutoSaveManager {
             return false;
         }
         String category = ClassificationRules.inferCategory(payment.rawText, payment.sourceApp, payment.merchant, payment.type);
-        String account = ClassificationRules.inferAccount(payment.rawText, payment.sourceApp);
+        String account = store.inferAccount(payment.rawText, payment.sourceApp);
         if ("未确认账户".equals(account)) {
             return false;
         }
-        if (isBankPayment(payment)) {
+        if (isBankPayment(payment) || isBankMovement(payment)) {
             category = bankCategory(payment.rawText, payment.type);
         } else if (!isExplicitWalletPayment(payment) && "其它".equals(category)) {
             return false;
@@ -65,11 +65,23 @@ final class AutoSaveManager {
         return "中国银行".equals(source) || "交通银行".equals(source) || "招商银行".equals(source);
     }
 
+    private static boolean isBankMovement(ParsedPayment payment) {
+        String pkg = payment.sourcePackage == null ? "" : payment.sourcePackage;
+        String raw = payment.rawText == null ? "" : payment.rawText;
+        if ("com.tencent.mm".equals(pkg) || "com.eg.android.AlipayGphone".equals(pkg) || "com.taobao.taobao".equals(pkg)) {
+            return false;
+        }
+        return raw.contains("动账") || raw.contains("账户") || raw.contains("入账")
+                || raw.contains("到账") || raw.contains("支出") || raw.contains("扣款")
+                || raw.contains("收入") || raw.contains("交易");
+    }
+
     private static boolean isExplicitWalletPayment(ParsedPayment payment) {
         String source = payment.sourceApp == null ? "" : payment.sourceApp;
         String raw = payment.rawText == null ? "" : payment.rawText;
         if ("微信".equals(source)) {
-            return raw.contains("零钱") || raw.contains("零钱通") || raw.contains("微信零钱");
+            return raw.contains("退回零钱") || raw.contains("退款方式 退回零钱")
+                    || raw.contains("零钱") || raw.contains("零钱通") || raw.contains("微信零钱");
         }
         if ("支付宝".equals(source)) {
             return raw.contains("支付宝余额") || raw.contains("余额宝") || raw.contains("余额支付");

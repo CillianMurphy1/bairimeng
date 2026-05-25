@@ -292,6 +292,10 @@ public class MainActivity extends Activity {
         LinearLayout card = Ui.card(this);
         LinearLayout header = Ui.row(this);
         header.addView(Ui.text(this, "资金", 22, Color.BLACK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView add = Ui.text(this, "+", 26, Ui.ACCENT, Typeface.BOLD);
+        add.setGravity(Gravity.CENTER);
+        add.setOnClickListener(v -> startActivity(new Intent(this, AddAccountActivity.class)));
+        header.addView(add, new LinearLayout.LayoutParams(Ui.dp(this, 42), Ui.dp(this, 42)));
         TextView total = Ui.text(this, TransactionStore.formatMoneySigned(store.totalByKind("asset")) + "⌄", 22, Color.BLACK, Typeface.BOLD);
         total.setGravity(Gravity.END);
         header.addView(total);
@@ -350,6 +354,7 @@ public class MainActivity extends Activity {
     private LinearLayout billRow(Transaction tx) {
         LinearLayout row = Ui.row(this);
         row.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 12));
+        row.setOnClickListener(v -> openTransaction(tx));
         TextView icon = Ui.text(this, billIcon(tx), 16, billColor(tx), Typeface.BOLD);
         icon.setGravity(Gravity.CENTER);
         icon.setBackground(Ui.bg(this, billBg(tx), 999));
@@ -361,6 +366,16 @@ public class MainActivity extends Activity {
         TextView amount = Ui.text(this, billAmount(tx), 19, billColor(tx), Typeface.BOLD);
         row.addView(amount);
         return row;
+    }
+
+    private void openTransaction(Transaction tx) {
+        if ("income".equals(tx.type) || "expense".equals(tx.type) || "refund".equals(tx.type)) {
+            startActivity(EditTransactionActivity.intentForTransaction(this, tx.id));
+        } else if ("adjustment".equals(tx.type)) {
+            startActivity(AdjustBalanceActivity.intentForAccount(this, tx.accountName));
+        } else {
+            startActivity(new Intent(this, SearchActivity.class));
+        }
     }
 
     private void addAutoRecordCard() {

@@ -29,6 +29,7 @@ public class EditTransactionActivity extends Activity {
     private static final String EXTRA_NOTIFICATION_KEY = "notification_key";
     private static final String EXTRA_OCCURRED_AT = "occurred_at";
     private static final String EXTRA_TITLE = "title";
+    private static final String EXTRA_TRANSACTION_ID = "transaction_id";
 
     private EditText amountInput;
     private EditText merchantInput;
@@ -38,6 +39,7 @@ public class EditTransactionActivity extends Activity {
     private Spinner categorySpinner;
     private EditText sourceInput;
     private TransactionStore store;
+    private Transaction editingTransaction;
 
     static Intent intentForPayment(Context context, ParsedPayment payment) {
         Intent intent = new Intent(context, EditTransactionActivity.class);
@@ -57,6 +59,13 @@ public class EditTransactionActivity extends Activity {
         intent.putExtra(EXTRA_SOURCE_APP, "手动");
         intent.putExtra(EXTRA_OCCURRED_AT, System.currentTimeMillis());
         intent.putExtra(EXTRA_TITLE, "income".equals(type) ? "记一笔收入" : "记一笔支出");
+        return intent;
+    }
+
+    static Intent intentForTransaction(Context context, long transactionId) {
+        Intent intent = new Intent(context, EditTransactionActivity.class);
+        intent.putExtra(EXTRA_TRANSACTION_ID, transactionId);
+        intent.putExtra(EXTRA_TITLE, "修改账单");
         return intent;
     }
 
@@ -184,6 +193,17 @@ public class EditTransactionActivity extends Activity {
 
     private void fillFromIntent() {
         Intent intent = getIntent();
+        long transactionId = intent.getLongExtra(EXTRA_TRANSACTION_ID, 0);
+        if (transactionId > 0) {
+            editingTransaction = store.transactionById(transactionId);
+            if (editingTransaction == null) {
+                Toast.makeText(this, "账单不存在", Toast.LENGTH_SHORT).show();
+                finish();
+                return;
+            }
+            fillFromTransaction(editingTransaction);
+            return;
+        }
         long amountCents = intent.getLongExtra(EXTRA_AMOUNT_CENTS, 0);
         if (amountCents > 0) {
             amountInput.setText(PaymentParser.formatMoney(amountCents));
@@ -197,12 +217,24 @@ public class EditTransactionActivity extends Activity {
         merchantInput.setText(merchant == null ? "" : merchant);
         String rawText = intent.getStringExtra(EXTRA_RAW_TEXT);
         noteInput.setText(rawText == null ? "" : rawText);
-        String account = ClassificationRules.inferAccount(rawText, sourceApp);
+        String account = store.inferAccount(rawText, sourceApp);
         if ("未确认账户".equals(account)) {
-            account = ClassificationRules.inferAccount(merchant, sourceApp);
+            account = store.inferAccount(merchant, sourceApp);
         }
         selectSpinner(accountSpinner, account);
         selectSpinner(categorySpinner, ClassificationRules.inferCategory(rawText, sourceApp, merchant, "income".equals(type) ? "income" : "expense"));
+    }
+
+    private void fillFromTransaction(Transaction transaction) {
+        amountInput.setText(PaymentParser.formatMoney(transaction.amountCents));
+        boolean income = "income".equals(transaction.type);
+        typeSpinner.setSelection(income ? 1 : 0);
+        setCategoryOptions(income ? "income" : "expense");
+        sourceInput.setText(transaction.sourceApp == null ? "" : transaction.sourceApp);
+        merchantInput.setText(transaction.merchant == null ? "" : transaction.merchant);
+        noteInput.setText(transaction.note == null ? "" : transaction.note);
+        selectSpinner(accountSpinner, transaction.accountName);
+        selectSpinner(categorySpinner, transaction.category);
     }
 
     private void save() {
@@ -212,8 +244,8 @@ public class EditTransactionActivity extends Activity {
             return;
         }
 
-        String notificationKey = getIntent().getStringExtra(EXTRA_NOTIFICATION_KEY);
         Transaction transaction = new Transaction();
+        transaction.id = editingTransaction == null ? 0 : editingTransaction.id;
         transaction.type = typeSpinner.getSelectedItemPosition() == 1 ? "income" : "expense";
         transaction.amountCents = cents;
         transaction.sourceApp = sourceInput.getText().toString().trim();
@@ -221,18 +253,28 @@ public class EditTransactionActivity extends Activity {
         transaction.category = String.valueOf(categorySpinner.getSelectedItem());
         transaction.merchant = merchantInput.getText().toString().trim();
         transaction.note = noteInput.getText().toString().trim();
-        transaction.rawText = getIntent().getStringExtra(EXTRA_RAW_TEXT);
-        transaction.notificationKey = notificationKey;
-        transaction.occurredAt = getIntent().getLongExtra(EXTRA_OCCURRED_AT, System.currentTimeMillis());
+        transaction.rawText = editingTransaction == null ? getIntent().getStringExtra(EXTRA_RAW_TEXT) : editingTransaction.rawText;
+        transaction.notificationKey = editingTransaction == null ? getIntent().getStringExtra(EXTRA_NOTIFICATION_KEY) : editingTransaction.notificationKey;
+        transaction.occurredAt = editingTransaction == null
+                ? getIntent().getLongExtra(EXTRA_OCCURRED_AT, System.currentTimeMillis())
+                : editingTransaction.occurredAt;
         transaction.createdAt = System.currentTimeMillis();
 
-        long result = store.insert(transaction);
-        if (result == -1) {
-            Toast.makeText(this, "这条通知已经保存过了", Toast.LENGTH_SHORT).show();
+        if (editingTransaction != null) {
+            if (store.update(transaction)) {
+                Toast.makeText(this, "已修改，账户余额已同步", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "修改失败", Toast.LENGTH_SHORT).show();
+            }
         } else {
-            store.logAutoRecord("saved", transaction.sourceApp, transaction.rawText,
-                    "已保存：" + transaction.category + " / " + transaction.accountName, transaction.amountCents);
-            Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show();
+            long result = store.insert(transaction);
+            if (result == -1) {
+                Toast.makeText(this, "这条通知已经保存过了", Toast.LENGTH_SHORT).show();
+            } else {
+                store.logAutoRecord("saved", transaction.sourceApp, transaction.rawText,
+                        "已保存：" + transaction.category + " / " + transaction.accountName, transaction.amountCents);
+                Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show();
+            }
         }
         finish();
     }
