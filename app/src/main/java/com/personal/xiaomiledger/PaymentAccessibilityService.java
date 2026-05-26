@@ -289,7 +289,8 @@ public class PaymentAccessibilityService extends AccessibilityService {
         if (raw == null || raw.length() == 0) {
             return false;
         }
-        boolean hasResult = containsAny(raw, "支付成功", "付款成功", "交易成功", "已支付", "扣款成功", "收款到账", "到账成功", "转账成功");
+        boolean hasResult = containsAny(raw, "支付成功", "付款成功", "交易成功", "已支付", "扣款成功",
+                "收款到账", "到账成功", "转账成功", "你已收款", "已收款", "资金已存入零钱");
         boolean hasAmount = containsAny(raw, "¥", "￥", "元", "人民币", "RMB", "CNY");
         boolean noisy = containsAny(raw, "验证码", "登录", "密码", "银行卡号");
         boolean allowMissingAmount = "com.taobao.taobao".equals(packageName);
