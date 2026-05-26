@@ -91,6 +91,75 @@ final class PaymentContextStore {
         return raw != null && containsAny(raw, "财付通", "微信", "借记卡动账", "动账提醒", "动账");
     }
 
+    static boolean shouldDeferWechatCardPaymentToBank(ParsedPayment payment) {
+        if (payment == null || !"expense".equals(payment.type)) {
+            return false;
+        }
+        String source = payment.sourceApp == null ? "" : payment.sourceApp;
+        String pkg = payment.sourcePackage == null ? "" : payment.sourcePackage;
+        if (!"微信".equals(source) && !"com.tencent.mm".equals(pkg)) {
+            return false;
+        }
+        String raw = payment.rawText == null ? "" : payment.rawText;
+        if (raw.length() == 0 || hasSelectedWechatWallet(raw)) {
+            return false;
+        }
+        return hasSelectedBankCard(raw) || containsAny(raw,
+                "银行卡支付", "储蓄卡支付", "信用卡支付", "借记卡支付",
+                "银行卡", "储蓄卡", "信用卡", "借记卡",
+                "中国银行", "交通银行", "招商银行", "建设银行", "农业银行",
+                "工商银行", "邮储银行", "邮政储蓄", "浦发银行", "民生银行",
+                "平安银行", "兴业银行", "广发银行", "中信银行", "光大银行");
+    }
+
+    static boolean isExplicitWechatWalletPayment(ParsedPayment payment) {
+        if (payment == null || !"expense".equals(payment.type)) {
+            return false;
+        }
+        String source = payment.sourceApp == null ? "" : payment.sourceApp;
+        String pkg = payment.sourcePackage == null ? "" : payment.sourcePackage;
+        if (!"微信".equals(source) && !"com.tencent.mm".equals(pkg)) {
+            return false;
+        }
+        return hasSelectedWechatWallet(payment.rawText == null ? "" : payment.rawText);
+    }
+
+    static boolean hasRecentWechatWalletPaymentContext(Context context, ParsedPayment payment) {
+        if (payment == null || !"expense".equals(payment.type)) {
+            return false;
+        }
+        String source = payment.sourceApp == null ? "" : payment.sourceApp;
+        String pkg = payment.sourcePackage == null ? "" : payment.sourcePackage;
+        if (!"微信".equals(source) && !"com.tencent.mm".equals(pkg)) {
+            return false;
+        }
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        long createdAt = prefs.getLong("created_at", 0);
+        if (createdAt <= 0 || System.currentTimeMillis() - createdAt > MAX_AGE_MS) {
+            return false;
+        }
+        long amount = prefs.getLong("amount_cents", 0L);
+        if (amount > 0 && amount != payment.amountCents) {
+            return false;
+        }
+        String account = prefs.getString("account", "");
+        String raw = prefs.getString("raw", "");
+        return "微信零钱".equals(account) || hasSelectedWechatWallet(raw);
+    }
+
+    private static boolean hasSelectedWechatWallet(String raw) {
+        return Pattern.compile("(?:支付方式|付款方式)[:：\\s]*(?:微信零钱|零钱通|零钱)")
+                .matcher(raw)
+                .find()
+                || containsAny(raw, "微信零钱支付", "零钱支付", "零钱通支付");
+    }
+
+    private static boolean hasSelectedBankCard(String raw) {
+        return Pattern.compile("(?:支付方式|付款方式)[:：\\s]*[^，,。；;\\n]{0,28}(?:银行|银行卡|储蓄卡|信用卡|借记卡)")
+                .matcher(raw)
+                .find();
+    }
+
     private static Long findAmount(String raw) {
         Long amount = findAmount(raw, MONEY_WITH_SYMBOL);
         return amount != null ? amount : findAmount(raw, MONEY_WITH_YUAN);

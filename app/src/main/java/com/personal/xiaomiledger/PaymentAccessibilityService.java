@@ -28,6 +28,8 @@ public class PaymentAccessibilityService extends AccessibilityService {
             "com.taobao.taobao"
     ));
     private long lastLaunchAt;
+    private String delayedWechatKey = "";
+    private long delayedWechatAt;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WindowManager windowManager;
     private View overlayView;
@@ -61,6 +63,26 @@ public class PaymentAccessibilityService extends AccessibilityService {
         if (payment == null) {
             return;
         }
+        if (PaymentContextStore.shouldDeferWechatCardPaymentToBank(payment)) {
+            TransactionStore store = new TransactionStore(this);
+            store.logAutoRecord("ignored", payment.sourceApp, payment.rawText,
+                    "微信银行卡支付页面，等待银行动账通知入账，避免重复记录", payment.amountCents);
+            return;
+        }
+        if (RecentPaymentGate.shouldSkipWechatAfterRecentBank(this, payment)) {
+            TransactionStore store = new TransactionStore(this);
+            store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText,
+                    "近期已有同金额银行支出，微信支付页面已忽略，避免重复记录", payment.amountCents);
+            return;
+        }
+        if (RecentPaymentGate.shouldWaitForPossibleBankPayment(this, payment)) {
+            delayWechatPayment(payment);
+            return;
+        }
+        continuePayment(payment);
+    }
+
+    private void continuePayment(ParsedPayment payment) {
         long now = System.currentTimeMillis();
         if (now - lastLaunchAt < 2500L) {
             return;
@@ -80,6 +102,31 @@ public class PaymentAccessibilityService extends AccessibilityService {
             return;
         }
         showPaymentOverlay(payment);
+    }
+
+    private void delayWechatPayment(ParsedPayment payment) {
+        long now = System.currentTimeMillis();
+        String key = payment.notificationKey == null || payment.notificationKey.length() == 0
+                ? payment.sourceApp + ":" + payment.amountCents + ":" + now
+                : payment.notificationKey;
+        if (key.equals(delayedWechatKey) && now - delayedWechatAt < RecentPaymentGate.crossSourceWindowMs()) {
+            return;
+        }
+        delayedWechatKey = key;
+        delayedWechatAt = now;
+        lastLaunchAt = now;
+        TransactionStore store = new TransactionStore(this);
+        store.logAutoRecord("seen", payment.sourceApp, payment.rawText,
+                "微信支付页面等待银行动账 " + (RecentPaymentGate.crossSourceWindowMs() / 1000L) + " 秒", payment.amountCents);
+        mainHandler.postDelayed(() -> {
+            if (RecentPaymentGate.shouldSkipWechatAfterRecentBank(this, payment)) {
+                TransactionStore delayedStore = new TransactionStore(this);
+                delayedStore.logAutoRecord("duplicate", payment.sourceApp, payment.rawText,
+                        "近期已有同金额银行支出，微信支付页面已忽略，避免重复记录", payment.amountCents);
+                return;
+            }
+            continuePayment(payment);
+        }, RecentPaymentGate.crossSourceWindowMs());
     }
 
     @Override

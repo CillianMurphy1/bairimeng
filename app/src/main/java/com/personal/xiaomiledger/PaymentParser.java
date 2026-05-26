@@ -145,7 +145,11 @@ final class PaymentParser {
     }
 
     private static String notificationKey(String packageName, String type, long amountCents, String raw, long occurredAt) {
-        long bucket = occurredAt > 0 ? occurredAt / 120000L : System.currentTimeMillis() / 120000L;
+        long time = occurredAt > 0 ? occurredAt : System.currentTimeMillis();
+        if (isBankPackage(packageName) || looksLikeBankMovement(raw) || isTransitCardNotification(raw)) {
+            return "notify:" + packageName + ":" + type + ":" + amountCents + ":" + time + ":" + Math.abs(raw.hashCode());
+        }
+        long bucket = time / 120000L;
         return "notify:" + packageName + ":" + type + ":" + amountCents + ":" + bucket + ":" + Math.abs(raw.hashCode());
     }
 

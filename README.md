@@ -4,7 +4,7 @@
 
 ## 当前版本
 
-- 版本标记：`v0.2.13-transit-card-local`
+- 版本标记：`v0.2.16-payment-dedup`
 - 安装包名：`com.personal.xiaomiledger.v2`
 - 手机显示名：`白日夢新版`
 - 旧版包名：`com.personal.xiaomiledger`，因 debug 签名不一致，当前保留旧版并并存安装新版。
@@ -92,6 +92,7 @@ $env:Path='D:\xiaomi_app\.tools\jdk17\bin;D:\xiaomi_app\.tools\android-sdk\platf
 
 ### 2026-05-26
 
+- v0.2.16：优化微信/银行同一笔支付的跨来源去重；微信支付页会短暂等待银行动账，避免银行卡付款被重复入账；交通银行连续同金额小额支付可分别记录。
 - 建立 Git 版本管理。
 - 增加银行 App 通知高置信度自动入账。
 - 增加自动保存后的系统通知。

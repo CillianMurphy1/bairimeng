@@ -2,6 +2,8 @@ package com.personal.xiaomiledger;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 import java.util.LinkedHashSet;
@@ -11,6 +13,8 @@ public class PaymentNotificationListener extends NotificationListenerService {
     private static final String PREFS = "listener_state";
     private static final String RECENT_KEYS = "recent_keys";
     private static final int MAX_RECENT = 80;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Set<String> delayedWechatKeys = new LinkedHashSet<>();
 
     @Override
     public void onListenerConnected() {
@@ -58,11 +62,40 @@ public class PaymentNotificationListener extends NotificationListenerService {
             store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText, "重复通知，已忽略", payment.amountCents);
             return;
         }
+        if (PaymentContextStore.shouldDeferWechatCardPaymentToBank(payment)) {
+            store.logAutoRecord("ignored", payment.sourceApp, payment.rawText,
+                    "微信银行卡支付通知，等待银行动账通知入账，避免重复记录", payment.amountCents);
+            return;
+        }
+        if (RecentPaymentGate.shouldSkipWechatAfterRecentBank(this, payment)) {
+            store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText,
+                    "近期已有同金额银行支出，微信通知已忽略，避免重复记录", payment.amountCents);
+            return;
+        }
+        if (!fromActiveScan && RecentPaymentGate.shouldWaitForPossibleBankPayment(this, payment)) {
+            delayWechatPayment(payment);
+            return;
+        }
+        continuePayment(payment, store, fromActiveScan);
+    }
+
+    private void continuePayment(ParsedPayment payment, TransactionStore store, boolean fromActiveScan) {
+        if (store.hasNotificationKey(payment.notificationKey)
+                || (!fromActiveScan && isRecentlySeen(payment.notificationKey))) {
+            store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText, "重复通知，已忽略", payment.amountCents);
+            return;
+        }
+        if (RecentPaymentGate.shouldSkipWechatAfterRecentBank(this, payment)) {
+            store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText,
+                    "近期已有同金额银行支出，微信通知已忽略，避免重复记录", payment.amountCents);
+            return;
+        }
         if (!fromActiveScan && RecentPaymentGate.shouldSkipAndRemember(this, payment)) {
             store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText, "近期已由其他方式识别，已忽略", payment.amountCents);
             return;
         }
         remember(payment.notificationKey);
+        RecentPaymentGate.rememberBankExpense(this, payment);
         String category = ClassificationRules.inferCategory(payment.rawText, payment.sourceApp, payment.merchant, payment.type);
         String account = store.inferAccount(payment.rawText, payment.sourceApp);
         store.logAutoRecord("recognized", payment.sourceApp, payment.rawText,
@@ -79,6 +112,28 @@ public class PaymentNotificationListener extends NotificationListenerService {
         }
         NotificationHelper.showPending(this, payment);
         tryLaunchEditor(payment);
+    }
+
+    private void delayWechatPayment(ParsedPayment payment) {
+        String key = payment.notificationKey == null || payment.notificationKey.length() == 0
+                ? String.valueOf(System.currentTimeMillis())
+                : payment.notificationKey;
+        synchronized (delayedWechatKeys) {
+            if (delayedWechatKeys.contains(key)) {
+                return;
+            }
+            delayedWechatKeys.add(key);
+        }
+        TransactionStore store = new TransactionStore(this);
+        store.logAutoRecord("seen", payment.sourceApp, payment.rawText,
+                "微信支付通知等待银行动账 " + (RecentPaymentGate.crossSourceWindowMs() / 1000L) + " 秒", payment.amountCents);
+        mainHandler.postDelayed(() -> {
+            synchronized (delayedWechatKeys) {
+                delayedWechatKeys.remove(key);
+            }
+            TransactionStore delayedStore = new TransactionStore(this);
+            continuePayment(payment, delayedStore, false);
+        }, RecentPaymentGate.crossSourceWindowMs());
     }
 
     private void tryLaunchEditor(ParsedPayment payment) {
