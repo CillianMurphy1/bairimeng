@@ -22,20 +22,37 @@ final class PaymentContextStore {
             return;
         }
         String raw = rawText.replace('\n', ' ').replaceAll("\\s+", " ").trim();
-        if (!containsAny(raw, "红包", "微信红包", "发红包", "塞钱进红包", "恭喜发财")) {
+        boolean redPacketContext = containsAny(raw, "红包", "微信红包", "发红包", "塞钱进红包", "恭喜发财");
+        boolean paymentMethodContext = containsAny(raw, "支付", "付款", "收银台", "支付方式", "储蓄卡", "信用卡", "银行卡")
+                && containsAny(raw, "银行", "零钱", "余额", "储蓄卡", "信用卡", "银行卡");
+        if (!redPacketContext && !paymentMethodContext) {
             return;
         }
         Long amount = findAmount(raw);
-        String account = ClassificationRules.inferAccount(raw, "微信");
-        if (amount == null && "未确认账户".equals(account)) {
+        String account = new TransactionStore(context).inferAccount(raw, "微信");
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        long previousCreatedAt = prefs.getLong("created_at", 0);
+        boolean hasRecentPrevious = previousCreatedAt > 0 && System.currentTimeMillis() - previousCreatedAt <= MAX_AGE_MS;
+        long previousAmount = hasRecentPrevious ? prefs.getLong("amount_cents", 0L) : 0L;
+        String previousAccount = hasRecentPrevious ? prefs.getString("account", "") : "";
+        String previousCategory = hasRecentPrevious ? prefs.getString("category", "") : "";
+        if (amount == null && previousAmount > 0) {
+            amount = previousAmount;
+        }
+        if ("未确认账户".equals(account) && previousAccount.length() > 0) {
+            account = previousAccount;
+        }
+        if (amount == null && "未确认账户".equals(account) && !redPacketContext && previousCategory.length() == 0) {
             return;
         }
-        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String category = redPacketContext || "发红包".equals(previousCategory)
+                ? "发红包"
+                : ClassificationRules.inferCategory(raw, "微信", "", "expense");
         prefs.edit()
                 .putLong("created_at", occurredAt > 0 ? occurredAt : System.currentTimeMillis())
                 .putLong("amount_cents", amount == null ? 0L : amount)
                 .putString("account", account)
-                .putString("category", "发红包")
+                .putString("category", category)
                 .putString("raw", raw)
                 .apply();
     }

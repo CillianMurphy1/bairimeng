@@ -30,12 +30,26 @@ public class PaymentNotificationListener extends NotificationListenerService {
     }
 
     private void handleNotification(StatusBarNotification sbn, boolean fromActiveScan) {
+        String raw = PaymentParser.rawText(sbn);
+        String packageName = sbn == null ? "" : sbn.getPackageName();
+        boolean interesting = PaymentParser.isWatchedOrBankLike(packageName, raw);
+        TransactionStore store = interesting ? new TransactionStore(this) : null;
+        if (interesting) {
+            store.logAutoRecord("seen", PaymentParser.sourceNameForPackage(packageName), raw,
+                    fromActiveScan ? "监听器补扫收到通知" : "监听器收到通知", 0);
+        }
         ParsedPayment payment = PaymentParser.parse(sbn);
         if (payment == null) {
+            if (interesting) {
+                store.logAutoRecord("ignored", PaymentParser.sourceNameForPackage(packageName), raw,
+                        "解析失败：没有识别到明确金额、收支方向或动账关键词", 0);
+            }
             return;
         }
         payment = PaymentContextStore.enrichBankPayment(this, payment);
-        TransactionStore store = new TransactionStore(this);
+        if (store == null) {
+            store = new TransactionStore(this);
+        }
         if (store.hasNotificationKey(payment.notificationKey)
                 || (!fromActiveScan && isRecentlySeen(payment.notificationKey))) {
             store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText, "重复通知，已忽略", payment.amountCents);

@@ -10,7 +10,8 @@ final class ClassificationRules {
         String text = normalize(rawText + " " + sourceApp + " " + merchant);
         if ("income".equals(type)) {
             if (containsAny(text, "工资", "薪资", "薪水", "工资卡")) return "工资";
-            if (containsAny(text, "红包", "转账收款", "收款到账")) return "收红包";
+            if (containsAny(text, "红包")) return "收红包";
+            if (containsAny(text, "收到转账", "转账已收款", "转账收款")) return "生活费";
             if (containsAny(text, "基金", "股票", "理财", "收益", "分红")) return "股票基金";
             if (containsAny(text, "兼职", "外快", "稿费")) return "外快";
             return "其它";

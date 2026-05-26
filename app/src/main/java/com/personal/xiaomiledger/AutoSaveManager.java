@@ -20,7 +20,10 @@ final class AutoSaveManager {
     }
 
     static boolean tryAutoSave(Context context, TransactionStore store, ParsedPayment payment) {
-        boolean trustedAutoSource = isBankPayment(payment) || isBankMovement(payment) || isExplicitWalletPayment(payment);
+        boolean trustedAutoSource = isBankPayment(payment)
+                || isBankMovement(payment)
+                || isExplicitWalletPayment(payment)
+                || isWechatIncomeReceipt(payment);
         if (!isAutoSaveEnabled(context) && !trustedAutoSource) {
             return false;
         }
@@ -34,7 +37,7 @@ final class AutoSaveManager {
         }
         if (isBankPayment(payment) || isBankMovement(payment)) {
             category = bankCategory(payment.rawText, payment.type);
-        } else if (!isExplicitWalletPayment(payment) && "其它".equals(category)) {
+        } else if (!isExplicitWalletPayment(payment) && !isWechatIncomeReceipt(payment) && "其它".equals(category)) {
             return false;
         }
 
@@ -87,6 +90,22 @@ final class AutoSaveManager {
             return raw.contains("支付宝余额") || raw.contains("余额宝") || raw.contains("余额支付");
         }
         return false;
+    }
+
+    private static boolean isWechatIncomeReceipt(ParsedPayment payment) {
+        String source = payment.sourceApp == null ? "" : payment.sourceApp;
+        String raw = payment.rawText == null ? "" : payment.rawText;
+        return "income".equals(payment.type)
+                && "微信".equals(source)
+                && (raw.contains("红包已到账")
+                || raw.contains("微信红包已到账")
+                || raw.contains("收到红包")
+                || raw.contains("转账已收款")
+                || raw.contains("收到转账")
+                || raw.contains("收款到账")
+                || raw.contains("已收款")
+                || raw.contains("退款到账")
+                || raw.contains("退回零钱"));
     }
 
     private static String bankCategory(String rawText, String type) {

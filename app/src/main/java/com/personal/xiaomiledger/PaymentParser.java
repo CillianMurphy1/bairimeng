@@ -41,14 +41,7 @@ final class PaymentParser {
         }
         String packageName = sbn.getPackageName();
 
-        Notification notification = sbn.getNotification();
-        Bundle extras = notification.extras;
-        String title = valueOf(extras, Notification.EXTRA_TITLE);
-        String text = valueOf(extras, Notification.EXTRA_TEXT);
-        String bigText = valueOf(extras, Notification.EXTRA_BIG_TEXT);
-        String subText = valueOf(extras, Notification.EXTRA_SUB_TEXT);
-        String lines = linesOf(extras);
-        String raw = normalize(title + " " + text + " " + bigText + " " + subText + " " + lines);
+        String raw = rawText(sbn);
         if (raw.length() == 0) {
             return null;
         }
@@ -69,6 +62,7 @@ final class PaymentParser {
                 : ((isBankPackage(packageName) || bankMovementPackage) ? findBankAmount(raw) : findPreferredAmount(raw));
         if (amountCents == null) {
             if (("com.taobao.taobao".equals(packageName) && raw.contains("支付成功"))
+                    || (isWechatPackage(packageName) && isWechatIncomeReceipt(raw))
                     || ((isBankPackage(packageName) || bankMovementPackage) && looksLikeBankMovement(raw))) {
                 amountCents = 0L;
             } else {
@@ -85,7 +79,7 @@ final class PaymentParser {
         parsed.sourcePackage = packageName;
         parsed.sourceApp = sourceName(packageName);
         parsed.rawText = raw;
-        parsed.merchant = findMerchant(raw, title);
+        parsed.merchant = findMerchant(raw, sourceName(packageName));
         if ("com.taobao.taobao".equals(packageName)) {
             String taobaoTitle = findTaobaoTitle(raw);
             if (taobaoTitle.length() > 0) {
@@ -93,9 +87,7 @@ final class PaymentParser {
             }
         }
         parsed.occurredAt = sbn.getPostTime() > 0 ? sbn.getPostTime() : System.currentTimeMillis();
-        parsed.notificationKey = sbn.getKey() != null && sbn.getKey().length() > 0
-                ? sbn.getKey()
-                : packageName + ":" + amountCents + ":" + raw.hashCode();
+        parsed.notificationKey = notificationKey(packageName, type, amountCents, raw, parsed.occurredAt);
         return parsed;
     }
 
@@ -120,7 +112,8 @@ final class PaymentParser {
                 ? findLabeledAmount(raw)
                 : ((isBankPackage(packageName) || bankMovementPackage) ? findBankAmount(raw) : findPreferredAmount(raw));
         if (amountCents == null) {
-            if ("com.taobao.taobao".equals(packageName) && raw.contains("支付成功")) {
+            if (("com.taobao.taobao".equals(packageName) && raw.contains("支付成功"))
+                    || (isWechatPackage(packageName) && isWechatIncomeReceipt(raw))) {
                 amountCents = 0L;
             } else {
                 return null;
@@ -149,8 +142,13 @@ final class PaymentParser {
         return parsed;
     }
 
+    private static String notificationKey(String packageName, String type, long amountCents, String raw, long occurredAt) {
+        long bucket = occurredAt > 0 ? occurredAt / 120000L : System.currentTimeMillis() / 120000L;
+        return "notify:" + packageName + ":" + type + ":" + amountCents + ":" + bucket + ":" + Math.abs(raw.hashCode());
+    }
+
     private static String detectType(String raw) {
-        if (containsAny(raw, "到账", "入账", "收到转账", "转入", "退款", "收入", "收款到账", "退款到账", "退回零钱")) {
+        if (containsAny(raw, "到账", "入账", "收到转账", "转账已收款", "已收款", "转入", "退款", "收入", "收款到账", "退款到账", "退回零钱", "红包已到账")) {
             return "income";
         }
         if (containsAny(raw, "支付", "付款", "消费", "扣款", "支出", "已付", "交易成功", "扫码", "动账提醒")) {
@@ -190,8 +188,18 @@ final class PaymentParser {
                 || "cmb.pb".equals(packageName);
     }
 
+    private static boolean isWechatPackage(String packageName) {
+        return "com.tencent.mm".equals(packageName);
+    }
+
+    private static boolean isWechatIncomeReceipt(String raw) {
+        return containsAny(raw, "红包已到账", "微信红包已到账", "收到红包", "转账已收款",
+                "收到转账", "收款到账", "已收款", "退款到账", "退回零钱");
+    }
+
     private static boolean looksLikeBankMovement(String raw) {
-        return containsAny(raw, "动账提醒", "动账", "账户变动", "交易提醒", "借记卡", "银行卡");
+        return containsAny(raw, "动账提醒", "动账", "账户变动", "交易提醒", "借记卡", "银行卡",
+                "扣款", "入账", "到账", "支出", "收入", "交易金额", "消费金额", "快捷支付");
     }
 
     private static Long findPreferredAmount(String raw) {
@@ -292,6 +300,28 @@ final class PaymentParser {
             default:
                 return packageName;
         }
+    }
+
+    static boolean isWatchedOrBankLike(String packageName, String rawText) {
+        return WATCHED_PACKAGES.contains(packageName) || looksLikeBankMovement(rawText == null ? "" : rawText);
+    }
+
+    static String sourceNameForPackage(String packageName) {
+        return sourceName(packageName);
+    }
+
+    static String rawText(StatusBarNotification sbn) {
+        if (sbn == null || sbn.getNotification() == null) {
+            return "";
+        }
+        Notification notification = sbn.getNotification();
+        Bundle extras = notification.extras;
+        String title = valueOf(extras, Notification.EXTRA_TITLE);
+        String text = valueOf(extras, Notification.EXTRA_TEXT);
+        String bigText = valueOf(extras, Notification.EXTRA_BIG_TEXT);
+        String subText = valueOf(extras, Notification.EXTRA_SUB_TEXT);
+        String lines = linesOf(extras);
+        return normalize(title + " " + text + " " + bigText + " " + subText + " " + lines);
     }
 
     private static String valueOf(Bundle extras, String key) {
