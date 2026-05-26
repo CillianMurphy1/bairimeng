@@ -22,6 +22,7 @@ final class AutoSaveManager {
     static boolean tryAutoSave(Context context, TransactionStore store, ParsedPayment payment) {
         boolean trustedAutoSource = isBankPayment(payment)
                 || isBankMovement(payment)
+                || isTransitCard(payment)
                 || isExplicitWalletPayment(payment)
                 || isWechatIncomeReceipt(payment);
         if (!isAutoSaveEnabled(context) && !trustedAutoSource) {
@@ -35,7 +36,9 @@ final class AutoSaveManager {
         if ("未确认账户".equals(account)) {
             return false;
         }
-        if (isBankPayment(payment) || isBankMovement(payment)) {
+        if (isTransitCard(payment)) {
+            category = "income".equals(payment.type) ? "其它" : "交通";
+        } else if (isBankPayment(payment) || isBankMovement(payment)) {
             category = bankCategory(payment.rawText, payment.type);
         } else if (!isExplicitWalletPayment(payment) && !isWechatIncomeReceipt(payment) && "其它".equals(category)) {
             return false;
@@ -77,6 +80,14 @@ final class AutoSaveManager {
         return raw.contains("动账") || raw.contains("账户") || raw.contains("入账")
                 || raw.contains("到账") || raw.contains("支出") || raw.contains("扣款")
                 || raw.contains("收入") || raw.contains("交易");
+    }
+
+    private static boolean isTransitCard(ParsedPayment payment) {
+        String source = payment.sourceApp == null ? "" : payment.sourceApp;
+        String raw = payment.rawText == null ? "" : payment.rawText;
+        return "长安通互联互通卡".equals(source)
+                || (raw.contains("长安通") || raw.contains("互联互通卡"))
+                && (raw.contains("地铁") || raw.contains("公交") || raw.contains("充值"));
     }
 
     private static boolean isExplicitWalletPayment(ParsedPayment payment) {

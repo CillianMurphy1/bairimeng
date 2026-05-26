@@ -58,6 +58,7 @@ final class ClassificationRules {
         if (containsAny(text, "招商银行", "招行", "cmb")) return "招商银行";
         if (containsAny(text, "中国银行", "中行", "BOC")) return "中国银行";
         if (containsAny(text, "交通银行", "交行")) return "交通银行";
+        if (containsAny(text, "长安通互联互通卡", "长安通", "互联互通卡")) return "长安通互联互通卡";
         if (containsAny(text, "微信零钱", "微信支付", "微信")) return "微信零钱";
         if (containsAny(text, "支付宝余额", "余额宝", "支付宝")) return "支付宝余额";
         if (containsAny(text, "京东金融", "京东")) return "京东金融";

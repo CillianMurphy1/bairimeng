@@ -47,10 +47,11 @@ final class PaymentParser {
         }
         boolean watchedPackage = WATCHED_PACKAGES.contains(packageName);
         boolean bankMovementPackage = !watchedPackage && looksLikeBankMovement(raw);
-        if (!watchedPackage && !bankMovementPackage) {
+        boolean transitCardPackage = isTransitCardNotification(raw);
+        if (!watchedPackage && !bankMovementPackage && !transitCardPackage) {
             return null;
         }
-        String type = isBankPackage(packageName) ? detectBankType(raw) : detectType(raw);
+        String type = transitCardPackage ? detectTransitType(raw) : (isBankPackage(packageName) ? detectBankType(raw) : detectType(raw));
         if (type == null && (isBankPackage(packageName) || bankMovementPackage) && looksLikeBankMovement(raw)) {
             type = "expense";
         }
@@ -59,7 +60,7 @@ final class PaymentParser {
         }
         Long amountCents = "com.taobao.taobao".equals(packageName)
                 ? findLabeledAmount(raw)
-                : ((isBankPackage(packageName) || bankMovementPackage) ? findBankAmount(raw) : findPreferredAmount(raw));
+                : (transitCardPackage ? findAmount(raw) : ((isBankPackage(packageName) || bankMovementPackage) ? findBankAmount(raw) : findPreferredAmount(raw)));
         if (amountCents == null) {
             if (("com.taobao.taobao".equals(packageName) && raw.contains("支付成功"))
                     || (isWechatPackage(packageName) && isWechatIncomeReceipt(raw))
@@ -77,9 +78,9 @@ final class PaymentParser {
         parsed.type = type;
         parsed.amountCents = amountCents;
         parsed.sourcePackage = packageName;
-        parsed.sourceApp = sourceName(packageName);
+        parsed.sourceApp = sourceName(packageName, raw);
         parsed.rawText = raw;
-        parsed.merchant = findMerchant(raw, sourceName(packageName));
+        parsed.merchant = transitCardPackage ? findTransitMerchant(raw) : findMerchant(raw, sourceName(packageName, raw));
         if ("com.taobao.taobao".equals(packageName)) {
             String taobaoTitle = findTaobaoTitle(raw);
             if (taobaoTitle.length() > 0) {
@@ -94,14 +95,15 @@ final class PaymentParser {
     static ParsedPayment parseRawText(String packageName, String rawText, long occurredAt) {
         boolean watchedPackage = WATCHED_PACKAGES.contains(packageName);
         boolean bankMovementPackage = !watchedPackage && looksLikeBankMovement(rawText == null ? "" : rawText);
-        if (!watchedPackage && !bankMovementPackage) {
+        boolean transitCardPackage = isTransitCardNotification(rawText == null ? "" : rawText);
+        if (!watchedPackage && !bankMovementPackage && !transitCardPackage) {
             return null;
         }
         String raw = normalize(rawText);
         if (raw.length() == 0) {
             return null;
         }
-        String type = (isBankPackage(packageName) || bankMovementPackage) ? detectBankType(raw) : detectType(raw);
+        String type = transitCardPackage ? detectTransitType(raw) : ((isBankPackage(packageName) || bankMovementPackage) ? detectBankType(raw) : detectType(raw));
         if (type == null && (isBankPackage(packageName) || bankMovementPackage) && looksLikeBankMovement(raw)) {
             type = "expense";
         }
@@ -110,7 +112,7 @@ final class PaymentParser {
         }
         Long amountCents = "com.taobao.taobao".equals(packageName)
                 ? findLabeledAmount(raw)
-                : ((isBankPackage(packageName) || bankMovementPackage) ? findBankAmount(raw) : findPreferredAmount(raw));
+                : (transitCardPackage ? findAmount(raw) : ((isBankPackage(packageName) || bankMovementPackage) ? findBankAmount(raw) : findPreferredAmount(raw)));
         if (amountCents == null) {
             if (("com.taobao.taobao".equals(packageName) && raw.contains("支付成功"))
                     || (isWechatPackage(packageName) && isWechatIncomeReceipt(raw))) {
@@ -122,7 +124,7 @@ final class PaymentParser {
         if (amountCents < 0) {
             return null;
         }
-        String merchant = findMerchant(raw, sourceName(packageName));
+        String merchant = transitCardPackage ? findTransitMerchant(raw) : findMerchant(raw, sourceName(packageName, raw));
         if ("com.taobao.taobao".equals(packageName)) {
             String taobaoTitle = findTaobaoTitle(raw);
             if (taobaoTitle.length() > 0) {
@@ -133,7 +135,7 @@ final class PaymentParser {
         parsed.type = type;
         parsed.amountCents = amountCents;
         parsed.sourcePackage = packageName;
-        parsed.sourceApp = sourceName(packageName);
+        parsed.sourceApp = sourceName(packageName, raw);
         parsed.rawText = raw;
         parsed.merchant = merchant;
         parsed.occurredAt = occurredAt > 0 ? occurredAt : System.currentTimeMillis();
@@ -195,6 +197,22 @@ final class PaymentParser {
     private static boolean isWechatIncomeReceipt(String raw) {
         return containsAny(raw, "红包已到账", "微信红包已到账", "收到红包", "转账已收款",
                 "收到转账", "收款到账", "已收款", "退款到账", "退回零钱");
+    }
+
+    private static boolean isTransitCardNotification(String raw) {
+        return raw != null
+                && containsAny(raw, "长安通", "互联互通卡")
+                && containsAny(raw, "地铁", "公交", "充值", "扣费", "消费", "出站", "进站");
+    }
+
+    private static String detectTransitType(String raw) {
+        if (containsAny(raw, "充值", "充值成功", "充值到账", "已充值", "充卡")) {
+            return "income";
+        }
+        if (containsAny(raw, "地铁", "公交", "扣费", "消费", "出站", "进站")) {
+            return "expense";
+        }
+        return null;
     }
 
     private static boolean looksLikeBankMovement(String raw) {
@@ -282,7 +300,24 @@ final class PaymentParser {
         return "";
     }
 
+    private static String findTransitMerchant(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        if (raw.contains("地铁")) return "地铁";
+        if (raw.contains("公交")) return "公交";
+        if (raw.contains("充值")) return "地铁卡充值";
+        return "长安通";
+    }
+
     private static String sourceName(String packageName) {
+        return sourceName(packageName, "");
+    }
+
+    private static String sourceName(String packageName, String raw) {
+        if (isTransitCardNotification(raw)) {
+            return "长安通互联互通卡";
+        }
         switch (packageName) {
             case "com.tencent.mm":
                 return "微信";
@@ -303,7 +338,8 @@ final class PaymentParser {
     }
 
     static boolean isWatchedOrBankLike(String packageName, String rawText) {
-        return WATCHED_PACKAGES.contains(packageName) || looksLikeBankMovement(rawText == null ? "" : rawText);
+        String raw = rawText == null ? "" : rawText;
+        return WATCHED_PACKAGES.contains(packageName) || looksLikeBankMovement(raw) || isTransitCardNotification(raw);
     }
 
     static String sourceNameForPackage(String packageName) {
