@@ -30,6 +30,9 @@ final class AutoSaveManager {
         if (payment.amountCents <= 0) {
             return false;
         }
+        if (isAmbiguousWalletExpense(payment)) {
+            return false;
+        }
         String category = ClassificationRules.inferCategory(payment.rawText, payment.sourceApp, payment.merchant, payment.type);
         String account = store.inferAccount(payment.rawText, payment.sourceApp);
         if ("未确认账户".equals(account)) {
@@ -90,6 +93,13 @@ final class AutoSaveManager {
             return raw.contains("支付宝余额") || raw.contains("余额宝") || raw.contains("余额支付");
         }
         return false;
+    }
+
+    private static boolean isAmbiguousWalletExpense(ParsedPayment payment) {
+        String source = payment.sourceApp == null ? "" : payment.sourceApp;
+        return "expense".equals(payment.type)
+                && ("微信".equals(source) || "支付宝".equals(source))
+                && !isExplicitWalletPayment(payment);
     }
 
     private static boolean isWechatIncomeReceipt(ParsedPayment payment) {

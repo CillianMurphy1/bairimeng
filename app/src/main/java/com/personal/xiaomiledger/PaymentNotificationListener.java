@@ -50,6 +50,7 @@ public class PaymentNotificationListener extends NotificationListenerService {
             return;
         }
         payment = PaymentContextStore.enrichBankPayment(this, payment);
+        payment = PaymentContextStore.enrichWechatPayment(this, payment);
         if (store == null) {
             store = new TransactionStore(this);
         }
@@ -60,6 +61,11 @@ public class PaymentNotificationListener extends NotificationListenerService {
         }
         if (!fromActiveScan && RecentPaymentGate.shouldSkipAndRemember(this, payment)) {
             store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText, "近期已由其他方式识别，已忽略", payment.amountCents);
+            return;
+        }
+        if (PaymentContextStore.shouldWaitForBankNotification(this, payment)) {
+            store.logAutoRecord("ignored", payment.sourceApp, payment.rawText,
+                    "支付结果匹配到银行卡支付上下文，等待银行通知入账", payment.amountCents);
             return;
         }
         remember(payment.notificationKey);

@@ -61,6 +61,7 @@ public class PaymentAccessibilityService extends AccessibilityService {
         if (payment == null) {
             return;
         }
+        payment = PaymentContextStore.enrichWechatPayment(this, payment);
         long now = System.currentTimeMillis();
         if (now - lastLaunchAt < 2500L) {
             return;
@@ -68,6 +69,11 @@ public class PaymentAccessibilityService extends AccessibilityService {
         TransactionStore store = new TransactionStore(this);
         if (store.hasNotificationKey(payment.notificationKey) || RecentPaymentGate.shouldSkipAndRemember(this, payment)) {
             store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText, "无障碍重复识别，已忽略", payment.amountCents);
+            return;
+        }
+        if (PaymentContextStore.shouldWaitForBankNotification(this, payment)) {
+            store.logAutoRecord("ignored", payment.sourceApp, payment.rawText,
+                    "支付结果匹配到银行卡支付上下文，等待银行通知入账", payment.amountCents);
             return;
         }
 

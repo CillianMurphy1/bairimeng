@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 final class PaymentContextStore {
     private static final String PREFS = "payment_context";
     private static final long MAX_AGE_MS = 180000L;
+    private static final long WECHAT_PAYMENT_CONTEXT_MAX_AGE_MS = 1000L;
     private static final Pattern MONEY_WITH_SYMBOL = Pattern.compile(
             "(?:¥|￥|人民币)\\s*([0-9]{1,6}(?:,[0-9]{3})*|[0-9]+)(?:\\.([0-9]{1,2}))?");
     private static final Pattern MONEY_WITH_YUAN = Pattern.compile(
@@ -18,9 +19,10 @@ final class PaymentContextStore {
     }
 
     static void rememberIfUseful(Context context, String packageName, String rawText, long occurredAt) {
-        if (!"com.tencent.mm".equals(packageName) || rawText == null || rawText.length() == 0) {
+        if (!isWalletPackage(packageName) || rawText == null || rawText.length() == 0) {
             return;
         }
+        String sourceApp = "com.eg.android.AlipayGphone".equals(packageName) ? "支付宝" : "微信";
         String raw = rawText.replace('\n', ' ').replaceAll("\\s+", " ").trim();
         boolean redPacketContext = containsAny(raw, "红包", "微信红包", "发红包", "塞钱进红包", "恭喜发财");
         boolean paymentMethodContext = containsAny(raw, "支付", "付款", "收银台", "支付方式", "储蓄卡", "信用卡", "银行卡")
@@ -29,7 +31,7 @@ final class PaymentContextStore {
             return;
         }
         Long amount = findAmount(raw);
-        String account = new TransactionStore(context).inferAccount(raw, "微信");
+        String account = new TransactionStore(context).inferAccount(raw, sourceApp);
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         long previousCreatedAt = prefs.getLong("created_at", 0);
         boolean hasRecentPrevious = previousCreatedAt > 0 && System.currentTimeMillis() - previousCreatedAt <= MAX_AGE_MS;
@@ -47,7 +49,7 @@ final class PaymentContextStore {
         }
         String category = redPacketContext || "发红包".equals(previousCategory)
                 ? "发红包"
-                : ClassificationRules.inferCategory(raw, "微信", "", "expense");
+                : ClassificationRules.inferCategory(raw, sourceApp, "", "expense");
         prefs.edit()
                 .putLong("created_at", occurredAt > 0 ? occurredAt : System.currentTimeMillis())
                 .putLong("amount_cents", amount == null ? 0L : amount)
@@ -79,6 +81,54 @@ final class PaymentContextStore {
             payment.rawText = payment.rawText + " " + raw;
         }
         return payment;
+    }
+
+    static ParsedPayment enrichWechatPayment(Context context, ParsedPayment payment) {
+        if (payment == null || !isWalletPackage(payment.sourcePackage) || !"expense".equals(payment.type)) {
+            return payment;
+        }
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (!isRecentForPayment(prefs, payment, WECHAT_PAYMENT_CONTEXT_MAX_AGE_MS)) {
+            return payment;
+        }
+        long amount = prefs.getLong("amount_cents", 0L);
+        if (amount > 0 && payment.amountCents > 0 && amount != payment.amountCents) {
+            return payment;
+        }
+        String raw = prefs.getString("raw", "");
+        if (raw.length() > 0 && !payment.rawText.contains(raw)) {
+            payment.rawText = payment.rawText + " " + raw;
+        }
+        return payment;
+    }
+
+    static boolean shouldWaitForBankNotification(Context context, ParsedPayment payment) {
+        if (payment == null || !isWalletPackage(payment.sourcePackage) || !"expense".equals(payment.type)) {
+            return false;
+        }
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (!isRecentForPayment(prefs, payment, WECHAT_PAYMENT_CONTEXT_MAX_AGE_MS)) {
+            return false;
+        }
+        long amount = prefs.getLong("amount_cents", 0L);
+        if (amount > 0 && payment.amountCents > 0 && amount != payment.amountCents) {
+            return false;
+        }
+        String account = prefs.getString("account", "");
+        return account.contains("银行") && !account.contains("微信") && !account.contains("支付宝");
+    }
+
+    private static boolean isWalletPackage(String packageName) {
+        return "com.tencent.mm".equals(packageName) || "com.eg.android.AlipayGphone".equals(packageName);
+    }
+
+    private static boolean isRecentForPayment(SharedPreferences prefs, ParsedPayment payment, long maxAgeMs) {
+        long createdAt = prefs.getLong("created_at", 0);
+        if (createdAt <= 0) {
+            return false;
+        }
+        long occurredAt = payment != null && payment.occurredAt > 0 ? payment.occurredAt : System.currentTimeMillis();
+        return Math.abs(occurredAt - createdAt) <= maxAgeMs;
     }
 
     static boolean isBankSource(ParsedPayment payment) {
