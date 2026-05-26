@@ -66,7 +66,9 @@ public class PaymentNotificationListener extends NotificationListenerService {
                 (fromActiveScan ? "补扫识别：" : "已识别：") + category + " / " + account, payment.amountCents);
         if (payment.amountCents <= 0 && PaymentContextStore.isBankSource(payment)) {
             store.logAutoRecord("ignored", payment.sourceApp, payment.rawText,
-                    "银行通知缺少金额，且没有匹配到支付页面上下文，已忽略", payment.amountCents);
+                    "银行通知缺少金额，且没有匹配到支付页面上下文，转入确认页补全", payment.amountCents);
+            NotificationHelper.showPending(this, payment);
+            tryLaunchEditor(payment);
             return;
         }
         if (AutoSaveManager.tryAutoSave(this, store, payment)) {
