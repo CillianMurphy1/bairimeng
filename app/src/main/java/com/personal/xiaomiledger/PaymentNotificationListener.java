@@ -32,6 +32,9 @@ public class PaymentNotificationListener extends NotificationListenerService {
     private void handleNotification(StatusBarNotification sbn, boolean fromActiveScan) {
         String raw = PaymentParser.rawText(sbn);
         String packageName = sbn == null ? "" : sbn.getPackageName();
+        if (getPackageName().equals(packageName)) {
+            return;
+        }
         boolean interesting = PaymentParser.isWatchedOrBankLike(packageName, raw);
         TransactionStore store = interesting ? new TransactionStore(this) : null;
         if (interesting) {

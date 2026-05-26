@@ -4,7 +4,7 @@
 
 ## 当前版本
 
-- 版本标记：`v0.2.9-bank-summary-confirm`
+- 版本标记：`v0.2.10-ignore-self-notification`
 - 安装包名：`com.personal.xiaomiledger.v2`
 - 手机显示名：`白日夢新版`
 - 旧版包名：`com.personal.xiaomiledger`，因 debug 签名不一致，当前保留旧版并并存安装新版。
@@ -117,3 +117,4 @@ $env:Path='D:\xiaomi_app\.tools\jdk17\bin;D:\xiaomi_app\.tools\android-sdk\platf
 - 自动记账日志新增“收到通知/解析失败”记录，便于排查通知监听已收到但未入账的情况。
 - 银行摘要通知缺少金额且没有支付页上下文时，改为弹出/发送确认记账入口，由用户补全金额。
 - 说明：Android/澎湃系统不允许 App 自行打开无障碍权限；普通返回桌面不应关闭服务，但强行停止、系统清理或覆盖安装后可能需要重新确认权限。
+- v0.2.10：修复白日夢自己的“已自动记账”通知被通知监听器再次解析，导致同一笔银行扣款被重复入账的问题。
