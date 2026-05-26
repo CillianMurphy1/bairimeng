@@ -72,7 +72,7 @@ public class EditTransactionActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(Ui.PAPER);
+        Ui.applyBackground(this);
         store = new TransactionStore(this);
         buildUi();
         fillFromIntent();
@@ -175,7 +175,7 @@ public class EditTransactionActivity extends Activity {
         editText.setHint(hint);
         editText.setSingleLine(false);
         editText.setTextColor(Ui.INK);
-        editText.setHintTextColor(Color.rgb(133, 141, 138));
+        editText.setHintTextColor(Ui.MUTED);
         editText.setBackground(Ui.strokeBg(this, Color.WHITE, 12, Ui.LINE));
         editText.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), 0);
         editText.setMinHeight(Ui.dp(this, 48));

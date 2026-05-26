@@ -26,7 +26,7 @@ public class CategoryManageActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(Color.WHITE);
+        Ui.applyBackground(this);
         store = new TransactionStore(this);
         buildShell();
         render();
@@ -109,7 +109,7 @@ public class CategoryManageActivity extends Activity {
     private TextView categoryChip(String name) {
         TextView chip = Ui.text(this, name, 16, Ui.INK, Typeface.BOLD);
         chip.setGravity(Gravity.CENTER);
-        chip.setBackground(Ui.bg(this, Color.rgb(248, 250, 252), 999));
+        chip.setBackground(Ui.bg(this, Ui.CHIP_BG, 999));
         GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
         lp.width = (getResources().getDisplayMetrics().widthPixels - Ui.dp(this, 70)) / 3;
         lp.height = Ui.dp(this, 44);

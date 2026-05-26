@@ -20,7 +20,7 @@ public class RemoveAccountActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(Ui.PAPER);
+        Ui.applyBackground(this);
         store = new TransactionStore(this);
         buildUi();
     }

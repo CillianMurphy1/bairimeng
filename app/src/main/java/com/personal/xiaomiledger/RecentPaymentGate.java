@@ -105,6 +105,10 @@ final class RecentPaymentGate {
             int rawHash = payment.rawText == null ? 0 : payment.rawText.hashCode();
             return payment.sourceApp + "|" + payment.type + "|" + payment.amountCents + "|" + payment.occurredAt + "|" + rawHash;
         }
+        if (isPaymentAppSource(payment)) {
+            int rawHash = payment.rawText == null ? 0 : payment.rawText.hashCode();
+            return payment.sourceApp + "|" + payment.type + "|" + payment.amountCents + "|" + payment.occurredAt + "|" + rawHash;
+        }
         String extra = payment.amountCents <= 0 && payment.rawText != null ? "|" + payment.rawText.hashCode() : "";
         return payment.sourceApp + "|" + payment.type + "|" + payment.amountCents + "|" + bucket + extra;
     }
@@ -122,6 +126,20 @@ final class RecentPaymentGate {
         return payment != null
                 && "expense".equals(payment.type)
                 && PaymentContextStore.isBankSource(payment);
+    }
+
+    private static boolean isPaymentAppSource(ParsedPayment payment) {
+        if (payment == null) {
+            return false;
+        }
+        String source = payment.sourceApp == null ? "" : payment.sourceApp;
+        String pkg = payment.sourcePackage == null ? "" : payment.sourcePackage;
+        return "微信".equals(source)
+                || "支付宝".equals(source)
+                || "淘宝".equals(source)
+                || "com.tencent.mm".equals(pkg)
+                || "com.eg.android.AlipayGphone".equals(pkg)
+                || "com.taobao.taobao".equals(pkg);
     }
 
     private static final class BankExpense {

@@ -29,7 +29,7 @@ public class BudgetActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(Color.WHITE);
+        Ui.applyBackground(this);
         store = new TransactionStore(this);
         buildShell();
         render();
@@ -56,12 +56,12 @@ public class BudgetActivity extends Activity {
         long totalBudget = findBudget("总预算", range);
 
         LinearLayout summary = Ui.card(this);
-        summary.addView(Ui.text(this, "本月预算", 22, Ui.INK, Typeface.BOLD));
+        summary.addView(Ui.text(this, "本月预算", 20, Ui.INK, Typeface.BOLD));
         summary.addView(Ui.spacer(this, 14));
         LinearLayout metrics = Ui.row(this);
         metrics.addView(metric("预算", totalBudget > 0 ? PaymentParser.formatMoney(totalBudget) : "未设置", Ui.INK));
         metrics.addView(metric("已支出", PaymentParser.formatMoney(expense), Ui.WARNING));
-        metrics.addView(metric("结余", TransactionStore.formatMoneySigned(income - expense), Ui.ACCENT));
+        metrics.addView(metric("结余", TransactionStore.formatMoneySigned(income - expense), Ui.SUCCESS));
         summary.addView(metrics);
         root.addView(summary);
 
@@ -106,7 +106,7 @@ public class BudgetActivity extends Activity {
             }
         }
         if (!hasBudget) {
-            TextView empty = Ui.text(this, "还没有设置预算。", 16, Ui.MUTED, Typeface.NORMAL);
+            TextView empty = Ui.text(this, "还没有设置预算", 15, Ui.MUTED, Typeface.NORMAL);
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(0, Ui.dp(this, 26), 0, Ui.dp(this, 22));
             list.addView(empty);
@@ -116,16 +116,16 @@ public class BudgetActivity extends Activity {
 
     private LinearLayout topBar() {
         LinearLayout top = Ui.row(this);
-        TextView back = Ui.text(this, "‹", 38, Ui.INK, Typeface.NORMAL);
+        TextView back = Ui.text(this, "‹", 34, Ui.INK, Typeface.NORMAL);
         back.setGravity(Gravity.CENTER);
         back.setOnClickListener(v -> finish());
-        top.addView(back, new LinearLayout.LayoutParams(Ui.dp(this, 42), Ui.dp(this, 42)));
-        top.addView(Ui.text(this, "预算管理", 25, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        top.addView(back, new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40)));
+        top.addView(Ui.text(this, "预算管理", 22, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         return top;
     }
 
     private TextView metric(String label, String value, int color) {
-        TextView view = Ui.text(this, label + "\n" + value, 17, color, Typeface.BOLD);
+        TextView view = Ui.text(this, label + "\n" + value, 16, color, Typeface.BOLD);
         view.setGravity(Gravity.CENTER);
         view.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         return view;
@@ -151,8 +151,8 @@ public class BudgetActivity extends Activity {
         box.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 10));
 
         LinearLayout row = Ui.row(this);
-        row.addView(Ui.text(this, budget.category, 17, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        TextView amount = Ui.text(this, PaymentParser.formatMoney(spent) + " / " + PaymentParser.formatMoney(budget.amountCents), 16, over ? Ui.WARNING : Ui.MUTED, Typeface.BOLD);
+        row.addView(Ui.text(this, budget.category, 16, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView amount = Ui.text(this, PaymentParser.formatMoney(spent) + " / " + PaymentParser.formatMoney(budget.amountCents), 15, over ? Ui.WARNING : Ui.MUTED, Typeface.BOLD);
         amount.setGravity(Gravity.END);
         row.addView(amount);
         box.addView(row);
@@ -160,12 +160,11 @@ public class BudgetActivity extends Activity {
 
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
-        bar.setBackground(Ui.bg(this, Color.rgb(238, 241, 245), 999));
+        bar.setBackground(Ui.bg(this, Ui.PROGRESS_TRACK, 999));
         View filled = new View(this);
         filled.setBackground(Ui.bg(this, over ? Ui.WARNING : Ui.ACCENT, 999));
-        bar.addView(filled, new LinearLayout.LayoutParams(0, Ui.dp(this, 8), Math.max(1, percent)));
-        View rest = new View(this);
-        bar.addView(rest, new LinearLayout.LayoutParams(0, Ui.dp(this, 8), Math.max(0, 100 - percent)));
+        bar.addView(filled, new LinearLayout.LayoutParams(0, Ui.dp(this, 6), Math.max(1, percent)));
+        bar.addView(new View(this), new LinearLayout.LayoutParams(0, Ui.dp(this, 6), Math.max(0, 100 - percent)));
         box.addView(bar);
         return box;
     }
@@ -179,9 +178,7 @@ public class BudgetActivity extends Activity {
 
     private long findBudget(String category, long[] range) {
         for (Budget budget : store.budgets()) {
-            if (category.equals(budget.category) && budget.startAt == range[0] && budget.endAt == range[1]) {
-                return budget.amountCents;
-            }
+            if (category.equals(budget.category) && budget.startAt == range[0] && budget.endAt == range[1]) return budget.amountCents;
         }
         return 0;
     }
@@ -198,10 +195,7 @@ public class BudgetActivity extends Activity {
     }
 
     private Long parseAmount(String value) {
-        try {
-            return new BigDecimal(value.trim()).movePointRight(2).longValue();
-        } catch (RuntimeException ignored) {
-            return null;
-        }
+        try { return new BigDecimal(value.trim()).movePointRight(2).longValue(); }
+        catch (RuntimeException ignored) { return null; }
     }
 }

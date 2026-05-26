@@ -1,7 +1,7 @@
 <resources>
-    <color name="ink">#18201F</color>
-    <color name="paper">#F7F5EF</color>
-    <color name="panel">#FFFFFF</color>
-    <color name="accent">#177E6B</color>
-    <color name="warning">#B14F24</color>
+    <color name="ink">#3E2723</color>
+    <color name="paper">#FEF9E6</color>
+    <color name="panel">#FFFEFA</color>
+    <color name="accent">#CB4335</color>
+    <color name="warning">#E57373</color>
 </resources>

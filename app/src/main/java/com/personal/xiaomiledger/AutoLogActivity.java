@@ -17,7 +17,7 @@ public class AutoLogActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(Color.WHITE);
+        Ui.applyBackground(this);
         store = new TransactionStore(this);
         buildUi();
     }
@@ -90,15 +90,15 @@ public class AutoLogActivity extends Activity {
     }
 
     private int statusColor(String status) {
-        if ("duplicate".equals(status)) return Color.rgb(92, 112, 140);
-        if ("saved".equals(status)) return Color.rgb(44, 188, 128);
+        if ("duplicate".equals(status)) return Ui.MUTED;
+        if ("saved".equals(status)) return Ui.SUCCESS;
         return Ui.ACCENT;
     }
 
     private int statusBg(String status) {
-        if ("duplicate".equals(status)) return Color.rgb(238, 241, 245);
-        if ("saved".equals(status)) return Color.rgb(230, 248, 240);
-        return Color.rgb(232, 245, 255);
+        if ("duplicate".equals(status)) return Ui.ADJUST_BG;
+        if ("saved".equals(status)) return Ui.INCOME_BG;
+        return Ui.TRANSFER_BG;
     }
 
     private String safe(String value) {

@@ -8,15 +8,14 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
@@ -29,7 +28,6 @@ import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
-    private FrameLayout screen;
     private LinearLayout content;
     private TransactionStore store;
     private Calendar selectedMonth = Calendar.getInstance();
@@ -42,7 +40,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(Color.WHITE);
+        Ui.applyBackground(this);
+        if (Build.VERSION.SDK_INT >= 29) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode =
+                    android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
+        }
         store = new TransactionStore(this);
         buildUi();
         requestPostNotifications();
@@ -69,9 +71,7 @@ public class MainActivity extends Activity {
                 drawerSwipeOpened = false;
                 break;
             case MotionEvent.ACTION_MOVE:
-                if (!drawerSwipeWatching || drawerSwipeOpened) {
-                    return;
-                }
+                if (!drawerSwipeWatching || drawerSwipeOpened) return;
                 float dx = event.getX() - drawerSwipeStartX;
                 float dy = Math.abs(event.getY() - drawerSwipeStartY);
                 if (dx > Ui.dp(this, 72) && dx > dy * 1.4f) {
@@ -85,74 +85,119 @@ public class MainActivity extends Activity {
                 drawerSwipeWatching = false;
                 drawerSwipeOpened = false;
                 break;
-            default:
-                break;
         }
     }
 
     private void buildUi() {
-        screen = new FrameLayout(this);
+        FrameLayout screen = new FrameLayout(this);
         screen.setBackgroundColor(Ui.PAPER);
+        screen.setClipToPadding(false);
 
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        screen.addView(page, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         page.addView(topBar());
 
         ScrollView scroll = new ScrollView(this);
+        scroll.setClipToPadding(false);
+        scroll.setPadding(0, 0, 0, Ui.dp(this, 12));
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 110));
+        content.setPadding(Ui.dp(this, 14), Ui.dp(this, 8), Ui.dp(this, 14), Ui.dp(this, 96));
         scroll.addView(content);
         page.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
-        TextView fab = Ui.text(this, "+", 40, Color.WHITE, Typeface.NORMAL);
+        page.addView(bottomNav());
+
+        screen.addView(page, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        TextView fab = Ui.text(this, "+", 36, Color.WHITE, Typeface.NORMAL);
         fab.setGravity(Gravity.CENTER);
-        fab.setBackground(Ui.bg(this, Ui.ACCENT, 999));
+        fab.setBackground(Ui.bg(this, Ui.ACCENT_GOLD, 999));
+        if (Build.VERSION.SDK_INT >= 21) {
+            fab.setElevation(Ui.dp(this, Ui.ELEVATION_FAB));
+        }
         fab.setOnClickListener(v -> startActivity(new Intent(this, AddBillActivity.class)));
-        FrameLayout.LayoutParams fabLp = new FrameLayout.LayoutParams(Ui.dp(this, 74), Ui.dp(this, 74), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        fabLp.setMargins(0, 0, 0, Ui.dp(this, 34));
+        FrameLayout.LayoutParams fabLp = new FrameLayout.LayoutParams(Ui.dp(this, 64), Ui.dp(this, 64), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        fabLp.setMargins(0, 0, 0, Ui.dp(this, 30));
         screen.addView(fab, fabLp);
 
         setContentView(screen);
     }
 
+    // ── top bar ──
+
     private LinearLayout topBar() {
         LinearLayout bar = Ui.row(this);
         bar.setBackgroundColor(Color.WHITE);
-        bar.setPadding(Ui.dp(this, 18), Ui.dp(this, 16), Ui.dp(this, 18), Ui.dp(this, 12));
-        bar.setMinimumHeight(Ui.dp(this, 82));
+        bar.setPadding(Ui.dp(this, 18), Ui.dp(this, 14), Ui.dp(this, 18), Ui.dp(this, 10));
+        bar.setMinimumHeight(Ui.dp(this, 72));
+        if (Build.VERSION.SDK_INT >= 21) {
+            bar.setElevation(Ui.dp(this, 1));
+        }
 
-        TextView menu = Ui.text(this, "☰", 34, Color.BLACK, Typeface.NORMAL);
+        TextView menu = Ui.text(this, "☰", 30, Ui.INK, Typeface.NORMAL);
         menu.setGravity(Gravity.CENTER);
         menu.setOnClickListener(v -> showDrawer());
-        bar.addView(menu, new LinearLayout.LayoutParams(Ui.dp(this, 54), Ui.dp(this, 54)));
+        bar.addView(menu, new LinearLayout.LayoutParams(Ui.dp(this, 48), Ui.dp(this, 48)));
 
-        monthText = Ui.text(this, monthTitle() + "⌄", 22, Color.BLACK, Typeface.BOLD);
+        monthText = Ui.text(this, monthTitle(), 20, Ui.INK, Typeface.BOLD);
         monthText.setGravity(Gravity.CENTER);
         monthText.setOnClickListener(v -> showMonthPicker());
-        bar.addView(monthText, new LinearLayout.LayoutParams(0, Ui.dp(this, 54), 1));
+        bar.addView(monthText, new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
 
-        TextView calendar = icon("▣");
-        calendar.setOnClickListener(v -> showMonthPicker());
-        bar.addView(calendar);
+        TextView statsBtn = Ui.text(this, "统计", 15, Ui.MUTED, Typeface.NORMAL);
+        statsBtn.setGravity(Gravity.CENTER);
+        statsBtn.setPadding(Ui.dp(this, 10), 0, Ui.dp(this, 10), 0);
+        statsBtn.setOnClickListener(v -> startActivity(new Intent(this, StatsActivity.class)));
+        bar.addView(statsBtn);
 
-        TextView chart = icon("▥");
-        chart.setOnClickListener(v -> startActivity(new Intent(this, StatsActivity.class)));
-        bar.addView(chart);
+        TextView searchBtn = Ui.text(this, "搜索", 15, Ui.MUTED, Typeface.NORMAL);
+        searchBtn.setGravity(Gravity.CENTER);
+        searchBtn.setPadding(Ui.dp(this, 10), 0, 0, 0);
+        searchBtn.setOnClickListener(v -> startActivity(new Intent(this, SearchActivity.class)));
+        bar.addView(searchBtn);
 
-        TextView asset = icon("▢");
-        asset.setOnClickListener(v -> startActivity(new Intent(this, AdjustBalanceActivity.class)));
-        bar.addView(asset);
         return bar;
     }
 
-    private TextView icon(String value) {
-        TextView icon = Ui.text(this, value, 28, Color.BLACK, Typeface.BOLD);
-        icon.setGravity(Gravity.CENTER);
-        return icon;
+    // ── bottom nav ──
+
+    private LinearLayout bottomNav() {
+        LinearLayout nav = Ui.row(this);
+        nav.setBackgroundColor(Color.WHITE);
+        nav.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 6));
+        nav.setMinimumHeight(Ui.dp(this, 56));
+        if (Build.VERSION.SDK_INT >= 21) {
+            nav.setElevation(Ui.dp(this, 4));
+        }
+
+        nav.addView(navItem("首页", true, v -> {}));
+        nav.addView(navItem("统计", false, v -> startActivity(new Intent(this, StatsActivity.class))));
+        nav.addView(navSpacer());
+        nav.addView(navItem("预算", false, v -> startActivity(new Intent(this, BudgetActivity.class))));
+        nav.addView(navItem("分类", false, v -> startActivity(new Intent(this, CategoryManageActivity.class))));
+        return nav;
     }
+
+    private View navSpacer() {
+        View spacer = new View(this);
+        spacer.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1));
+        return spacer;
+    }
+
+    private TextView navItem(String label, boolean active, View.OnClickListener listener) {
+        TextView item = Ui.text(this, label, 12, active ? Ui.ACCENT : Ui.MUTED, active ? Typeface.BOLD : Typeface.NORMAL);
+        item.setGravity(Gravity.CENTER);
+        item.setOnClickListener(listener);
+        item.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 4));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        lp.gravity = Gravity.CENTER;
+        item.setLayoutParams(lp);
+        return item;
+    }
+
+    // ── refresh ──
 
     private void refresh() {
         content.removeAllViews();
@@ -164,69 +209,125 @@ public class MainActivity extends Activity {
         addAutoRecordCard();
     }
 
+    // ── asset card ──
+
     private void addAssetCard() {
         long totalAssets = store.totalByKind("asset");
         long totalLiabilities = Math.abs(store.totalByKind("liability"));
         long netAssets = totalAssets - totalLiabilities;
-        LinearLayout card = Ui.card(this);
-        card.setPadding(Ui.dp(this, 20), Ui.dp(this, 24), Ui.dp(this, 20), Ui.dp(this, 24));
-        LinearLayout head = Ui.row(this);
-        head.addView(Ui.text(this, "白日夢", 18, Ui.MUTED, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        TextView adjust = Ui.text(this, "平账", 14, Ui.ACCENT, Typeface.BOLD);
-        adjust.setGravity(Gravity.CENTER);
-        adjust.setBackground(Ui.bg(this, Color.rgb(235, 243, 255), 999));
-        adjust.setPadding(Ui.dp(this, 14), Ui.dp(this, 7), Ui.dp(this, 14), Ui.dp(this, 7));
-        adjust.setOnClickListener(v -> startActivity(new Intent(this, AdjustBalanceActivity.class)));
-        head.addView(adjust);
-        card.addView(head);
-        card.addView(Ui.spacer(this, 12));
-        card.addView(center("净资产", 16, Ui.MUTED, Typeface.BOLD));
-        card.addView(center(TransactionStore.formatMoneySigned(netAssets), 40, Color.BLACK, Typeface.BOLD));
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(Ui.bg(this, Color.WHITE, 16));
+        card.setPadding(0, 0, 0, 0);
+        if (Build.VERSION.SDK_INT >= 21) {
+            card.setElevation(Ui.dp(this, Ui.ELEVATION_CARD));
+        }
+        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cardLp.setMargins(0, 0, 0, Ui.dp(this, 12));
+        card.setLayoutParams(cardLp);
+
+        LinearLayout header = Ui.row(this);
+        header.setBackground(Ui.bg(this, Ui.ACCENT, 0));
+        header.setPadding(Ui.dp(this, 20), Ui.dp(this, 20), Ui.dp(this, 20), Ui.dp(this, 16));
+        GradientDrawable headerBg = Ui.bg(this, Ui.ACCENT, 16);
+        headerBg.setCornerRadii(new float[]{
+                Ui.dp(this, 16), Ui.dp(this, 16),
+                Ui.dp(this, 16), Ui.dp(this, 16),
+                0, 0,
+                0, 0
+        });
+        header.setBackground(headerBg);
+
+        TextView brand = Ui.text(this, "白日夢", 16, Color.argb(200, 255, 255, 255), Typeface.BOLD);
+        brand.setGravity(Gravity.CENTER_VERTICAL);
+        header.addView(brand, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        TextView adjustBtn = Ui.text(this, "平账", 13, Color.WHITE, Typeface.BOLD);
+        adjustBtn.setGravity(Gravity.CENTER);
+        adjustBtn.setBackground(Ui.bg(this, Color.argb(80, 255, 255, 255), 999));
+        adjustBtn.setPadding(Ui.dp(this, 14), Ui.dp(this, 6), Ui.dp(this, 14), Ui.dp(this, 6));
+        adjustBtn.setOnClickListener(v -> startActivity(new Intent(this, AdjustBalanceActivity.class)));
+        header.addView(adjustBtn);
+        card.addView(header);
+
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(Ui.dp(this, 20), Ui.dp(this, 14), Ui.dp(this, 20), Ui.dp(this, 20));
+        body.setBackgroundColor(Color.WHITE);
+        card.addView(body);
+
+        TextView netLabel = Ui.text(this, "净资产", 14, Ui.MUTED, Typeface.NORMAL);
+        netLabel.setGravity(Gravity.CENTER);
+        body.addView(netLabel);
+
+        TextView netValue = Ui.text(this, TransactionStore.formatMoneySigned(netAssets), 38, Ui.INK, Typeface.BOLD);
+        netValue.setGravity(Gravity.CENTER);
+        body.addView(netValue);
+        body.addView(Ui.spacer(this, 16));
+
         LinearLayout row = Ui.row(this);
         row.setGravity(Gravity.CENTER);
-        row.addView(assetMetric("总资产", TransactionStore.formatMoneySigned(totalAssets)));
-        row.addView(assetMetric("总负债", totalLiabilities == 0 ? "无" : TransactionStore.formatMoneySigned(totalLiabilities)));
-        card.addView(row);
+        row.addView(assetMetric("总资产", TransactionStore.formatMoneySigned(totalAssets), Ui.SUCCESS));
+        View divider = new View(this);
+        divider.setBackgroundColor(Ui.LINE);
+        row.addView(divider, new LinearLayout.LayoutParams(Ui.dp(this, 1), Ui.dp(this, 32)));
+        row.addView(assetMetric("总负债", totalLiabilities == 0 ? "无" : TransactionStore.formatMoneySigned(totalLiabilities), Ui.WARNING));
+        body.addView(row);
+
         content.addView(card);
     }
+
+    private TextView assetMetric(String label, String value, int valueColor) {
+        TextView view = Ui.text(this, label + "\n" + value, 15, Ui.INK, Typeface.NORMAL);
+        view.setGravity(Gravity.CENTER);
+        view.setPadding(Ui.dp(this, 20), Ui.dp(this, 4), Ui.dp(this, 20), Ui.dp(this, 4));
+        return view;
+    }
+
+    // ── month overview ──
 
     private void addMonthOverviewCard() {
         long[] range = TransactionStore.currentMonthRange();
         long income = store.sumBetween("income", range[0], range[1]);
         long expense = store.sumBetween("expense", range[0], range[1]);
+
         LinearLayout card = Ui.card(this);
         LinearLayout header = Ui.row(this);
-        header.addView(Ui.text(this, "本月收支", 21, Color.BLACK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        TextView more = Ui.text(this, "统计", 15, Ui.ACCENT, Typeface.BOLD);
+        header.addView(Ui.text(this, "本月收支", 20, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView more = Ui.text(this, "统计", 14, Ui.ACCENT, Typeface.BOLD);
         more.setOnClickListener(v -> startActivity(new Intent(this, StatsActivity.class)));
         header.addView(more);
         card.addView(header);
         card.addView(Ui.spacer(this, 14));
+
         LinearLayout row = Ui.row(this);
-        row.addView(monthMetric("收入", PaymentParser.formatMoney(income), Color.rgb(44, 188, 128), Color.rgb(232, 248, 241)));
-        row.addView(monthMetric("支出", PaymentParser.formatMoney(expense), Ui.WARNING, Color.rgb(255, 239, 240)));
-        row.addView(monthMetric("结余", TransactionStore.formatMoneySigned(income - expense), Ui.INK, Color.rgb(240, 244, 248)));
+        row.addView(monthMetric("收入", PaymentParser.formatMoney(income), Ui.SUCCESS, Ui.INCOME_BG));
+        row.addView(monthMetric("支出", PaymentParser.formatMoney(expense), Ui.WARNING, Ui.EXPENSE_BG));
+        row.addView(monthMetric("结余", TransactionStore.formatMoneySigned(income - expense), Ui.INK, Ui.CHIP_BG));
         card.addView(row);
         content.addView(card);
     }
 
     private TextView monthMetric(String label, String value, int color, int bg) {
-        TextView view = Ui.text(this, label + "\n" + value, 15, color, Typeface.BOLD);
+        TextView view = Ui.text(this, label + "\n" + value, 14, color, Typeface.BOLD);
         view.setGravity(Gravity.CENTER);
-        view.setBackground(Ui.bg(this, bg, 14));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(this, 74), 1);
-        lp.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
+        view.setBackground(Ui.bg(this, bg, 12));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(this, 68), 1);
+        lp.setMargins(Ui.dp(this, 3), 0, Ui.dp(this, 3), 0);
         view.setLayoutParams(lp);
         return view;
     }
 
+    // ── quick actions ──
+
     private void addQuickActionsCard() {
         LinearLayout card = Ui.card(this);
-        card.setPadding(Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12));
+        card.setPadding(Ui.dp(this, 10), Ui.dp(this, 12), Ui.dp(this, 10), Ui.dp(this, 12));
         LinearLayout row = Ui.row(this);
         row.addView(quickAction("支出", Ui.WARNING, v -> startActivity(addBillIntent("expense"))));
-        row.addView(quickAction("收入", Color.rgb(44, 188, 128), v -> startActivity(addBillIntent("income"))));
-        row.addView(quickAction("转账", Ui.ACCENT, v -> startActivity(addBillIntent("transfer"))));
+        row.addView(quickAction("收入", Ui.SUCCESS, v -> startActivity(addBillIntent("income"))));
+        row.addView(quickAction("转账", Ui.TRANSFER, v -> startActivity(addBillIntent("transfer"))));
         row.addView(quickAction("预算", Ui.INK, v -> startActivity(new Intent(this, BudgetActivity.class))));
         card.addView(row);
         content.addView(card);
@@ -239,117 +340,86 @@ public class MainActivity extends Activity {
     }
 
     private TextView quickAction(String label, int color, View.OnClickListener listener) {
-        TextView button = Ui.text(this, label, 16, color, Typeface.BOLD);
+        TextView button = Ui.text(this, label, 15, color, Typeface.BOLD);
         button.setGravity(Gravity.CENTER);
-        button.setBackground(Ui.bg(this, Color.rgb(248, 250, 252), 14));
+        button.setBackground(Ui.bg(this, Ui.CHIP_BG, 12));
         button.setOnClickListener(listener);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(this, 50), 1);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(this, 46), 1);
         lp.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
         button.setLayoutParams(lp);
         return button;
     }
 
-    private void addBorrowCard() {
-        LinearLayout card = Ui.card(this);
-        card.setOrientation(LinearLayout.HORIZONTAL);
-        card.setPadding(Ui.dp(this, 18), Ui.dp(this, 16), Ui.dp(this, 18), Ui.dp(this, 16));
-        card.addView(borrowMetric("⇩", "总借入", "0.00"));
-        View line = new View(this);
-        line.setBackgroundColor(Ui.LINE);
-        card.addView(line, new LinearLayout.LayoutParams(Ui.dp(this, 1), Ui.dp(this, 58)));
-        card.addView(borrowMetric("⇧", "总借出", "0.00"));
-        content.addView(card);
-    }
-
-    private TextView center(String text, int size, int color, int style) {
-        TextView view = Ui.text(this, text, size, color, style);
-        view.setGravity(Gravity.CENTER);
-        return view;
-    }
-
-    private TextView assetMetric(String label, String value) {
-        TextView view = Ui.text(this, label + "\n" + value, 17, Color.BLACK, Typeface.BOLD);
-        view.setGravity(Gravity.CENTER);
-        view.setPadding(0, Ui.dp(this, 22), 0, 0);
-        view.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        return view;
-    }
-
-    private LinearLayout borrowMetric(String icon, String label, String value) {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.HORIZONTAL);
-        box.setGravity(Gravity.CENTER);
-        TextView iconView = Ui.text(this, icon, 26, Ui.MUTED, Typeface.BOLD);
-        iconView.setGravity(Gravity.CENTER);
-        box.addView(iconView, new LinearLayout.LayoutParams(Ui.dp(this, 54), Ui.dp(this, 54)));
-        TextView text = Ui.text(this, label + "\n" + value, 18, Color.BLACK, Typeface.BOLD);
-        box.addView(text);
-        box.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        return box;
-    }
+    // ── accounts ──
 
     private void addAccountsCard() {
         LinearLayout card = Ui.card(this);
         LinearLayout header = Ui.row(this);
-        header.addView(Ui.text(this, "资金", 22, Color.BLACK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        TextView add = Ui.text(this, "+", 26, Ui.ACCENT, Typeface.BOLD);
+        header.addView(Ui.text(this, "资金账户", 20, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView add = Ui.text(this, "+", 24, Ui.ACCENT, Typeface.BOLD);
         add.setGravity(Gravity.CENTER);
         add.setOnClickListener(v -> startActivity(new Intent(this, AddAccountActivity.class)));
-        header.addView(add, new LinearLayout.LayoutParams(Ui.dp(this, 42), Ui.dp(this, 42)));
-        TextView remove = Ui.text(this, "-", 26, Ui.WARNING, Typeface.BOLD);
+        header.addView(add, new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40)));
+        TextView remove = Ui.text(this, "-", 24, Ui.WARNING, Typeface.BOLD);
         remove.setGravity(Gravity.CENTER);
         remove.setOnClickListener(v -> startActivity(new Intent(this, RemoveAccountActivity.class)));
-        header.addView(remove, new LinearLayout.LayoutParams(Ui.dp(this, 42), Ui.dp(this, 42)));
-        TextView total = Ui.text(this, TransactionStore.formatMoneySigned(store.totalByKind("asset")) + "⌄", 22, Color.BLACK, Typeface.BOLD);
-        total.setGravity(Gravity.END);
+        header.addView(remove, new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40)));
+        TextView total = Ui.text(this, TransactionStore.formatMoneySigned(store.totalByKind("asset")) + "  ", 18, Ui.MUTED, Typeface.NORMAL);
+        total.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         header.addView(total);
+
         card.addView(header);
-        card.addView(line());
+        card.addView(Ui.line(this));
 
         List<Account> accounts = store.accounts();
         for (int i = 0; i < accounts.size(); i++) {
             card.addView(accountRow(accounts.get(i)));
-            if (i < accounts.size() - 1) {
-                card.addView(line());
-            }
+            if (i < accounts.size() - 1) card.addView(Ui.line(this));
         }
         content.addView(card);
     }
 
     private LinearLayout accountRow(Account account) {
         LinearLayout row = Ui.row(this);
-        row.setPadding(0, Ui.dp(this, 13), 0, Ui.dp(this, 13));
+        row.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 12));
         row.setOnClickListener(v -> startActivity(AdjustBalanceActivity.intentForAccount(this, account.name)));
-        TextView icon = Ui.text(this, accountInitial(account.name), 19, Color.WHITE, Typeface.BOLD);
+
+        TextView icon = Ui.text(this, accountInitial(account.name), 17, Color.WHITE, Typeface.BOLD);
         icon.setGravity(Gravity.CENTER);
-        icon.setBackground(Ui.bg(this, accountColor(account.name), 999));
-        row.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 48), Ui.dp(this, 48)));
-        TextView name = Ui.text(this, account.name, 22, Color.BLACK, Typeface.NORMAL);
+        icon.setBackground(Ui.bg(this, accountColor(account.name), 10));
+        row.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 42), Ui.dp(this, 42)));
+
+        TextView name = Ui.text(this, account.name, 18, Ui.INK, Typeface.NORMAL);
         LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        nameLp.setMargins(Ui.dp(this, 16), 0, 0, 0);
+        nameLp.setMargins(Ui.dp(this, 14), 0, 0, 0);
         row.addView(name, nameLp);
-        TextView balance = Ui.text(this, TransactionStore.formatMoneySigned(account.balanceCents), 21, Color.BLACK, Typeface.NORMAL);
+
+        TextView balance = Ui.text(this, TransactionStore.formatMoneySigned(account.balanceCents), 18, Ui.INK, Typeface.NORMAL);
         row.addView(balance);
         return row;
     }
 
+    // ── recent bills ──
+
     private void addBillsCard() {
         LinearLayout card = Ui.card(this);
         LinearLayout header = Ui.row(this);
-        header.addView(Ui.text(this, "最近账单", 22, Color.BLACK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        TextView more = Ui.text(this, "搜索", 15, Ui.ACCENT, Typeface.BOLD);
+        header.addView(Ui.text(this, "最近账单", 20, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView more = Ui.text(this, "全部", 14, Ui.ACCENT, Typeface.BOLD);
         more.setOnClickListener(v -> startActivity(new Intent(this, SearchActivity.class)));
         header.addView(more);
         card.addView(header);
+
         List<Transaction> transactions = store.recent(6);
         if (transactions.isEmpty()) {
-            TextView empty = center("没有数据", 18, Ui.MUTED, Typeface.NORMAL);
+            TextView empty = Ui.text(this, "还没有账单，点 + 记一笔吧", 15, Ui.MUTED, Typeface.NORMAL);
+            empty.setGravity(Gravity.CENTER);
             empty.setPadding(0, Ui.dp(this, 28), 0, Ui.dp(this, 20));
             card.addView(empty);
         } else {
-            for (Transaction tx : transactions) {
-                card.addView(line());
-                card.addView(billRow(tx));
+            for (int i = 0; i < transactions.size(); i++) {
+                card.addView(Ui.line(this));
+                card.addView(billRow(transactions.get(i)));
             }
         }
         content.addView(card);
@@ -357,17 +427,20 @@ public class MainActivity extends Activity {
 
     private LinearLayout billRow(Transaction tx) {
         LinearLayout row = Ui.row(this);
-        row.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 12));
+        row.setPadding(0, Ui.dp(this, 11), 0, Ui.dp(this, 11));
         row.setOnClickListener(v -> openTransaction(tx));
-        TextView icon = Ui.text(this, billIcon(tx), 16, billColor(tx), Typeface.BOLD);
+
+        TextView icon = Ui.text(this, billIcon(tx), 15, billColor(tx), Typeface.BOLD);
         icon.setGravity(Gravity.CENTER);
-        icon.setBackground(Ui.bg(this, billBg(tx), 999));
-        row.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
-        TextView info = Ui.text(this, billTitle(tx) + "\n" + safe(tx.accountName), 16, Color.BLACK, Typeface.NORMAL);
+        icon.setBackground(Ui.bg(this, billBg(tx), 8));
+        row.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 38), Ui.dp(this, 38)));
+
+        TextView info = Ui.text(this, billTitle(tx) + "\n" + safe(tx.accountName), 15, Ui.INK, Typeface.NORMAL);
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        infoLp.setMargins(Ui.dp(this, 14), 0, Ui.dp(this, 8), 0);
+        infoLp.setMargins(Ui.dp(this, 12), 0, Ui.dp(this, 8), 0);
         row.addView(info, infoLp);
-        TextView amount = Ui.text(this, billAmount(tx), 19, billColor(tx), Typeface.BOLD);
+
+        TextView amount = Ui.text(this, billAmount(tx), 17, billColor(tx), Typeface.BOLD);
         row.addView(amount);
         return row;
     }
@@ -377,18 +450,30 @@ public class MainActivity extends Activity {
             startActivity(EditTransactionActivity.intentForTransaction(this, tx.id));
         } else if ("adjustment".equals(tx.type)) {
             startActivity(AdjustBalanceActivity.intentForAccount(this, tx.accountName));
-        } else {
-            startActivity(new Intent(this, SearchActivity.class));
         }
     }
 
+    // ── auto record ──
+
     private void addAutoRecordCard() {
         LinearLayout card = Ui.card(this);
-        card.addView(Ui.text(this, "自动记账", 20, Color.BLACK, Typeface.BOLD));
-        card.addView(Ui.text(this, "微信、支付宝支付通知会生成待确认账单；这里可以查看识别记录。", 14, Ui.MUTED, Typeface.NORMAL));
+        card.setPadding(Ui.dp(this, 18), Ui.dp(this, 14), Ui.dp(this, 18), Ui.dp(this, 14));
+        LinearLayout row = Ui.row(this);
+        TextView indicator = new TextView(this);
+        indicator.setBackground(Ui.bg(this, Ui.ACCENT, 999));
+        row.addView(indicator, new LinearLayout.LayoutParams(Ui.dp(this, 4), Ui.dp(this, 18)));
+        TextView label = Ui.text(this, "  自动记账", 18, Ui.INK, Typeface.BOLD);
+        row.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView arrow = Ui.text(this, ">", 20, Ui.MUTED, Typeface.NORMAL);
+        row.addView(arrow);
+        card.addView(row);
+        card.addView(Ui.spacer(this, 4));
+        card.addView(Ui.text(this, "微信、支付宝支付通知自动识别记录", 13, Ui.MUTED, Typeface.NORMAL));
         card.setOnClickListener(v -> startActivity(new Intent(this, AutoLogActivity.class)));
         content.addView(card);
     }
+
+    // ── drawer ──
 
     private void showDrawer() {
         Dialog dialog = new Dialog(this);
@@ -412,9 +497,9 @@ public class MainActivity extends Activity {
         avatar.setBackground(Ui.bg(this, Color.rgb(246, 210, 74), 999));
         drawer.addView(avatar, new LinearLayout.LayoutParams(Ui.dp(this, 88), Ui.dp(this, 88)));
         drawer.addView(Ui.spacer(this, 18));
-        drawer.addView(Ui.text(this, "白日夢", 24, Color.BLACK, Typeface.BOLD));
-        drawer.addView(Ui.text(this, "已使用 1 天", 16, Ui.MUTED, Typeface.NORMAL));
-        drawer.addView(Ui.spacer(this, 42));
+        drawer.addView(Ui.text(this, "白日夢", 24, Ui.INK, Typeface.BOLD));
+        drawer.addView(Ui.text(this, "本地私用记账", 15, Ui.MUTED, Typeface.NORMAL));
+        drawer.addView(Ui.spacer(this, 36));
         drawer.addView(drawerItem("▣", "我的账本", "日常账本", v -> dialog.dismiss()));
         drawer.addView(drawerItem("¥", "报销管理", "", v -> Toast.makeText(this, "报销管理下一版继续补", Toast.LENGTH_SHORT).show()));
         drawer.addView(drawerItem("⌕", "搜索账单", "", v -> { dialog.dismiss(); startActivity(new Intent(this, SearchActivity.class)); }));
@@ -448,91 +533,81 @@ public class MainActivity extends Activity {
         LinearLayout row = Ui.row(this);
         row.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 12));
         row.setOnClickListener(listener);
-        TextView i = Ui.text(this, icon, 28, Ui.MUTED, Typeface.BOLD);
+        TextView i = Ui.text(this, icon, 26, Ui.MUTED, Typeface.BOLD);
         i.setGravity(Gravity.CENTER);
-        row.addView(i, new LinearLayout.LayoutParams(Ui.dp(this, 54), Ui.dp(this, 54)));
-        TextView t = Ui.text(this, title, 22, Color.BLACK, Typeface.NORMAL);
+        row.addView(i, new LinearLayout.LayoutParams(Ui.dp(this, 50), Ui.dp(this, 50)));
+        TextView t = Ui.text(this, title, 20, Ui.INK, Typeface.NORMAL);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        lp.setMargins(Ui.dp(this, 16), 0, 0, 0);
+        lp.setMargins(Ui.dp(this, 14), 0, 0, 0);
         row.addView(t, lp);
         if (tail.length() > 0) {
-            row.addView(Ui.text(this, tail, 16, Ui.MUTED, Typeface.NORMAL));
+            row.addView(Ui.text(this, tail, 14, Ui.MUTED, Typeface.NORMAL));
         }
         return row;
     }
 
+    // ── month picker ──
+
     private void showMonthPicker() {
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        LinearLayout card = Ui.card(this);
-        card.setPadding(0, Ui.dp(this, 16), 0, Ui.dp(this, 16));
-        card.addView(settingRow("显示方式", "按月 ›"));
-        card.addView(line());
-        card.addView(settingRow("月份起始日", "01 ›"));
-        card.addView(line());
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackground(Ui.bg(this, Color.WHITE, 16));
+        root.setPadding(Ui.dp(this, 18), Ui.dp(this, 16), Ui.dp(this, 18), Ui.dp(this, 16));
+
         LinearLayout body = Ui.row(this);
+
         LinearLayout years = new LinearLayout(this);
         years.setOrientation(LinearLayout.VERTICAL);
         for (int y = 2029; y >= 2023; y--) {
-            TextView year = center(y + "年", 22, y == selectedMonth.get(Calendar.YEAR) ? Color.WHITE : Color.BLACK, Typeface.NORMAL);
-            year.setBackground(Ui.bg(this, y == selectedMonth.get(Calendar.YEAR) ? Ui.ACCENT : Color.WHITE, 999));
             final int fy = y;
+            boolean sel = y == selectedMonth.get(Calendar.YEAR);
+            TextView year = Ui.text(this, y + "年", 20, sel ? Color.WHITE : Ui.INK, sel ? Typeface.BOLD : Typeface.NORMAL);
+            year.setGravity(Gravity.CENTER);
+            year.setBackground(Ui.bg(this, sel ? Ui.ACCENT : Ui.CHIP_BG, 999));
             year.setOnClickListener(v -> {
                 selectedMonth.set(Calendar.YEAR, fy);
-                if (monthText != null) {
-                    monthText.setText(monthTitle() + "⌄");
-                }
+                if (monthText != null) monthText.setText(monthTitle());
                 dialog.dismiss();
                 refresh();
             });
-            years.addView(year, new LinearLayout.LayoutParams(Ui.dp(this, 150), Ui.dp(this, 54)));
+            years.addView(year, new LinearLayout.LayoutParams(Ui.dp(this, 130), Ui.dp(this, 50)));
         }
         body.addView(years);
+
         GridLayout months = new GridLayout(this);
         months.setColumnCount(2);
         for (int m = 1; m <= 12; m++) {
-            TextView month = center(m + "月", 22, m == selectedMonth.get(Calendar.MONTH) + 1 ? Ui.ACCENT : Color.BLACK, Typeface.BOLD);
             final int fm = m;
+            boolean isCurrent = m == selectedMonth.get(Calendar.MONTH) + 1;
+            TextView month = Ui.text(this, m + "月", 20, isCurrent ? Ui.ACCENT : Ui.INK, isCurrent ? Typeface.BOLD : Typeface.NORMAL);
+            month.setGravity(Gravity.CENTER);
             month.setOnClickListener(v -> {
                 selectedMonth.set(Calendar.MONTH, fm - 1);
-                if (monthText != null) {
-                    monthText.setText(monthTitle() + "⌄");
-                }
+                if (monthText != null) monthText.setText(monthTitle());
                 dialog.dismiss();
                 refresh();
             });
-            months.addView(month, new ViewGroup.LayoutParams(Ui.dp(this, 120), Ui.dp(this, 58)));
+            months.addView(month, new ViewGroup.LayoutParams(Ui.dp(this, 100), Ui.dp(this, 52)));
         }
         body.addView(months);
-        card.addView(body);
-        dialog.setContentView(card);
-        dialog.show();
+        root.addView(body);
+
+        dialog.setContentView(root);
         Window window = dialog.getWindow();
         if (window != null) {
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             window.setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.84f), ViewGroup.LayoutParams.WRAP_CONTENT);
         }
+        dialog.show();
     }
 
-    private LinearLayout settingRow(String left, String right) {
-        LinearLayout row = Ui.row(this);
-        row.setPadding(Ui.dp(this, 18), 0, Ui.dp(this, 18), 0);
-        row.addView(Ui.text(this, left, 20, Color.BLACK, Typeface.NORMAL), new LinearLayout.LayoutParams(0, Ui.dp(this, 58), 1));
-        TextView r = Ui.text(this, right, 20, Ui.MUTED, Typeface.BOLD);
-        r.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
-        row.addView(r);
-        return row;
-    }
+    // ── helpers ──
 
     private String monthTitle() {
-        return new SimpleDateFormat("yyyy-MM", Locale.CHINA).format(selectedMonth.getTime());
-    }
-
-    private View line() {
-        View line = new View(this);
-        line.setBackgroundColor(Ui.LINE);
-        line.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 1)));
-        return line;
+        return new SimpleDateFormat("yyyy年M月", Locale.CHINA).format(selectedMonth.getTime());
     }
 
     private String billTitle(Transaction tx) {
@@ -548,24 +623,24 @@ public class MainActivity extends Activity {
     }
 
     private String billIcon(Transaction tx) {
-        if ("income".equals(tx.type)) return "入";
+        if ("income".equals(tx.type)) return "收";
         if ("transfer".equals(tx.type)) return "转";
-        if ("adjustment".equals(tx.type)) return "平";
+        if ("adjustment".equals(tx.type)) return "调";
         return "支";
     }
 
     private int billColor(Transaction tx) {
-        if ("income".equals(tx.type)) return Color.rgb(44, 188, 128);
-        if ("transfer".equals(tx.type)) return Ui.ACCENT;
-        if ("adjustment".equals(tx.type)) return Color.rgb(92, 112, 140);
+        if ("income".equals(tx.type)) return Ui.SUCCESS;
+        if ("transfer".equals(tx.type)) return Ui.TRANSFER;
+        if ("adjustment".equals(tx.type)) return Ui.MUTED;
         return Ui.WARNING;
     }
 
     private int billBg(Transaction tx) {
-        if ("income".equals(tx.type)) return Color.rgb(230, 248, 240);
-        if ("transfer".equals(tx.type)) return Color.rgb(232, 245, 255);
-        if ("adjustment".equals(tx.type)) return Color.rgb(238, 241, 245);
-        return Color.rgb(255, 238, 241);
+        if ("income".equals(tx.type)) return Ui.INCOME_BG;
+        if ("transfer".equals(tx.type)) return Ui.TRANSFER_BG;
+        if ("adjustment".equals(tx.type)) return Ui.ADJUST_BG;
+        return Ui.EXPENSE_BG;
     }
 
     private String accountInitial(String name) {
@@ -575,7 +650,7 @@ public class MainActivity extends Activity {
         if (name.contains("微信")) return "微";
         if (name.contains("支付宝")) return "支";
         if (name.contains("京东")) return "京";
-        return name.length() == 0 ? "账" : name.substring(0, 1);
+        return name.isEmpty() ? "账" : name.substring(0, 1);
     }
 
     private int accountColor(String name) {
@@ -589,7 +664,7 @@ public class MainActivity extends Activity {
     }
 
     private String safe(String value) {
-        return value == null || value.length() == 0 ? "未填写" : value;
+        return value == null || value.isEmpty() ? "未填写" : value;
     }
 
     private void requestPostNotifications() {

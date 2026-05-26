@@ -146,7 +146,7 @@ final class PaymentParser {
 
     private static String notificationKey(String packageName, String type, long amountCents, String raw, long occurredAt) {
         long time = occurredAt > 0 ? occurredAt : System.currentTimeMillis();
-        if (isBankPackage(packageName) || looksLikeBankMovement(raw) || isTransitCardNotification(raw)) {
+        if (isBankPackage(packageName) || isPaymentAppPackage(packageName) || looksLikeBankMovement(raw) || isTransitCardNotification(raw)) {
             return "notify:" + packageName + ":" + type + ":" + amountCents + ":" + time + ":" + Math.abs(raw.hashCode());
         }
         long bucket = time / 120000L;
@@ -196,6 +196,12 @@ final class PaymentParser {
 
     private static boolean isWechatPackage(String packageName) {
         return "com.tencent.mm".equals(packageName);
+    }
+
+    private static boolean isPaymentAppPackage(String packageName) {
+        return "com.tencent.mm".equals(packageName)
+                || "com.eg.android.AlipayGphone".equals(packageName)
+                || "com.taobao.taobao".equals(packageName);
     }
 
     private static boolean isWechatIncomeReceipt(String raw) {

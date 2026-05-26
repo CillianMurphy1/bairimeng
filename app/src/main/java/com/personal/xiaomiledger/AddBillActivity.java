@@ -3,6 +3,7 @@ package com.personal.xiaomiledger;
 import android.app.Activity;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -39,7 +40,7 @@ public class AddBillActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(Color.WHITE);
+        Ui.applyBackground(this);
         store = new TransactionStore(this);
         String initialMode = getIntent().getStringExtra("mode");
         if ("income".equals(initialMode) || "transfer".equals(initialMode) || "expense".equals(initialMode)) {
@@ -53,68 +54,79 @@ public class AddBillActivity extends Activity {
     private void buildUi() {
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.WHITE);
+        root.setBackgroundColor(Ui.PAPER);
         setContentView(root);
 
+        // ── top bar ──
         LinearLayout top = Ui.row(this);
-        top.setPadding(Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 10));
-        TextView close = Ui.text(this, "×", 36, Color.BLACK, Typeface.NORMAL);
+        top.setBackgroundColor(Color.WHITE);
+        top.setPadding(Ui.dp(this, 12), Ui.dp(this, 10), Ui.dp(this, 12), Ui.dp(this, 8));
+        if (Build.VERSION.SDK_INT >= 21) {
+            top.setElevation(Ui.dp(this, 1));
+        }
+
+        TextView close = Ui.text(this, "×", 32, Ui.MUTED, Typeface.NORMAL);
         close.setGravity(Gravity.CENTER);
         close.setOnClickListener(v -> finish());
-        top.addView(close, new LinearLayout.LayoutParams(Ui.dp(this, 54), Ui.dp(this, 54)));
-        top.addView(tab("支出", "expense"), new LinearLayout.LayoutParams(0, Ui.dp(this, 54), 1));
-        top.addView(tab("收入", "income"), new LinearLayout.LayoutParams(0, Ui.dp(this, 54), 1));
-        top.addView(tab("转账", "transfer"), new LinearLayout.LayoutParams(0, Ui.dp(this, 54), 1));
-        TextView add = Ui.text(this, "+", 25, Color.WHITE, Typeface.BOLD);
-        add.setGravity(Gravity.CENTER);
-        add.setBackground(Ui.bg(this, Color.BLACK, 11));
-        top.addView(add, new LinearLayout.LayoutParams(Ui.dp(this, 38), Ui.dp(this, 38)));
-        root.addView(top);
-        root.addView(line());
+        top.addView(close, new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
 
+        top.addView(tab("支出", "expense"), new LinearLayout.LayoutParams(0, Ui.dp(this, 44), 1));
+        top.addView(tab("收入", "income"), new LinearLayout.LayoutParams(0, Ui.dp(this, 44), 1));
+        top.addView(tab("转账", "transfer"), new LinearLayout.LayoutParams(0, Ui.dp(this, 44), 1));
+
+        root.addView(top);
+
+        // ── category / transfer area ──
         categoryArea = new LinearLayout(this);
         categoryArea.setOrientation(LinearLayout.VERTICAL);
-        categoryArea.setPadding(Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 18), 0);
+        categoryArea.setPadding(Ui.dp(this, 18), Ui.dp(this, 14), Ui.dp(this, 18), 0);
         root.addView(categoryArea, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         transferArea = new LinearLayout(this);
         transferArea.setOrientation(LinearLayout.VERTICAL);
-        transferArea.setPadding(Ui.dp(this, 18), Ui.dp(this, 250), Ui.dp(this, 18), 0);
+        transferArea.setPadding(Ui.dp(this, 18), Ui.dp(this, 200), Ui.dp(this, 18), 0);
         root.addView(transferArea, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
+        // ── bottom panel ──
         LinearLayout bottom = new LinearLayout(this);
         bottom.setOrientation(LinearLayout.VERTICAL);
-        bottom.setBackgroundColor(Ui.PAPER);
-        bottom.setPadding(Ui.dp(this, 18), Ui.dp(this, 14), Ui.dp(this, 18), Ui.dp(this, 16));
+        bottom.setBackgroundColor(Color.WHITE);
+        bottom.setPadding(Ui.dp(this, 18), Ui.dp(this, 10), Ui.dp(this, 18), Ui.dp(this, 12));
+        if (Build.VERSION.SDK_INT >= 21) {
+            bottom.setElevation(Ui.dp(this, 4));
+        }
         root.addView(bottom);
 
+        // amount + note row
         LinearLayout amountRow = Ui.row(this);
         noteInput = new EditText(this);
-        noteInput.setHint("点此输入备注...");
+        noteInput.setHint("备注...");
         noteInput.setSingleLine(true);
-        noteInput.setTextSize(18);
+        noteInput.setTextSize(16);
         noteInput.setTextColor(Ui.INK);
         noteInput.setHintTextColor(Ui.MUTED);
         noteInput.setBackgroundColor(Color.TRANSPARENT);
-        amountRow.addView(noteInput, new LinearLayout.LayoutParams(0, Ui.dp(this, 54), 1));
-        amountView = Ui.text(this, "0.0", 34, Ui.WARNING, Typeface.NORMAL);
+        amountRow.addView(noteInput, new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
+
+        amountView = Ui.text(this, "0.0", 30, Ui.WARNING, Typeface.NORMAL);
         amountView.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         amountRow.addView(amountView);
         bottom.addView(amountRow);
 
+        // chips row
         LinearLayout chips = Ui.row(this);
+        chips.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 6));
         accountSpinner = spinner(store.accountNames());
-        chips.addView(accountSpinner, new LinearLayout.LayoutParams(0, Ui.dp(this, 46), 1));
-        chips.addView(chip("今天 23:04"), new LinearLayout.LayoutParams(0, Ui.dp(this, 46), 1));
-        chips.addView(chip("图片"), new LinearLayout.LayoutParams(0, Ui.dp(this, 46), 1));
-        chips.addView(chip("⚑"), new LinearLayout.LayoutParams(0, Ui.dp(this, 46), 1));
+        chips.addView(accountSpinner, new LinearLayout.LayoutParams(0, Ui.dp(this, 42), 1));
+        chips.addView(chipBtn("日期"), new LinearLayout.LayoutParams(0, Ui.dp(this, 42), 1));
+        chips.addView(chipBtn("图片"), new LinearLayout.LayoutParams(0, Ui.dp(this, 42), 1));
         bottom.addView(chips);
 
+        // keypad
         GridLayout keypad = new GridLayout(this);
         keypad.setColumnCount(4);
         keypad.setRowCount(4);
-        keypad.setPadding(0, Ui.dp(this, 10), 0, 0);
-        String[] keys = {"1", "2", "3", "⌫", "4", "5", "6", "-", "7", "8", "9", "+", "再记", "0", ".", "保存"};
+        String[] keys = {"1", "2", "3", "⌫", "4", "5", "6", "再记", "7", "8", "9", ".", "保存", "0", "00", "+"};
         for (String key : keys) {
             keypad.addView(keyButton(key));
         }
@@ -122,7 +134,7 @@ public class AddBillActivity extends Activity {
     }
 
     private TextView tab(String label, String value) {
-        TextView tab = Ui.text(this, label, 24, Ui.MUTED, Typeface.NORMAL);
+        TextView tab = Ui.text(this, label, 18, Ui.MUTED, Typeface.NORMAL);
         tab.setGravity(Gravity.CENTER);
         tab.setOnClickListener(v -> {
             type = value;
@@ -134,10 +146,9 @@ public class AddBillActivity extends Activity {
 
     private void renderMode() {
         refreshTabs(root);
-        amountView.setTextColor("income".equals(type) ? Color.rgb(44, 188, 128) : ("transfer".equals(type) ? Ui.ACCENT : Ui.WARNING));
-        if (saveKeyButton != null) {
-            applySaveColor(saveKeyButton);
-        }
+        int color = "income".equals(type) ? Ui.SUCCESS : ("transfer".equals(type) ? Ui.TRANSFER : Ui.WARNING);
+        amountView.setTextColor(color);
+        if (saveKeyButton != null) applySaveColor(saveKeyButton);
         categoryArea.setVisibility("transfer".equals(type) ? View.GONE : View.VISIBLE);
         transferArea.setVisibility("transfer".equals(type) ? View.VISIBLE : View.GONE);
         renderCategories();
@@ -150,8 +161,9 @@ public class AddBillActivity extends Activity {
         for (int i = 1; i <= 3; i++) {
             TextView tab = (TextView) top.getChildAt(i);
             String value = i == 1 ? "expense" : (i == 2 ? "income" : "transfer");
-            tab.setTextColor(value.equals(type) ? Color.BLACK : Ui.MUTED);
-            tab.setTypeface(Typeface.DEFAULT, value.equals(type) ? Typeface.BOLD : Typeface.NORMAL);
+            boolean active = value.equals(type);
+            tab.setTextColor(active ? Ui.INK : Ui.MUTED);
+            tab.setTypeface(Typeface.DEFAULT, active ? Typeface.BOLD : Typeface.NORMAL);
         }
     }
 
@@ -173,25 +185,29 @@ public class AddBillActivity extends Activity {
         LinearLayout cell = new LinearLayout(this);
         cell.setOrientation(LinearLayout.VERTICAL);
         cell.setGravity(Gravity.CENTER);
-        cell.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 12));
+        cell.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 8));
         cell.setOnClickListener(v -> {
             category = name;
             renderCategories();
         });
 
         boolean selected = name.equals(category);
-        TextView icon = Ui.text(this, iconFor(name), 24, selected ? Ui.ACCENT : Ui.MUTED, Typeface.BOLD);
-        icon.setGravity(Gravity.CENTER);
-        icon.setBackground(Ui.bg(this, selected ? Color.rgb(232, 245, 255) : Color.WHITE, 999));
-        cell.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 54), Ui.dp(this, 54)));
+        int accent = "income".equals(type) ? Ui.SUCCESS : ("transfer".equals(type) ? Ui.TRANSFER : Ui.WARNING);
+        int selColor = selected ? accent : Ui.MUTED;
+        int selBg = selected ? Color.argb(30, Color.red(accent), Color.green(accent), Color.blue(accent)) : Color.TRANSPARENT;
 
-        TextView label = Ui.text(this, name, 15, selected ? Ui.ACCENT : Color.BLACK, Typeface.NORMAL);
+        TextView icon = Ui.text(this, iconFor(name), 22, selColor, Typeface.BOLD);
+        icon.setGravity(Gravity.CENTER);
+        icon.setBackground(Ui.bg(this, selBg, 10));
+        cell.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 50), Ui.dp(this, 50)));
+
+        TextView label = Ui.text(this, name, 13, selected ? accent : Ui.INK, selected ? Typeface.BOLD : Typeface.NORMAL);
         label.setGravity(Gravity.CENTER);
         cell.addView(label);
 
         GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
         lp.width = getResources().getDisplayMetrics().widthPixels / 5 - Ui.dp(this, 8);
-        lp.height = Ui.dp(this, 92);
+        lp.height = Ui.dp(this, 82);
         cell.setLayoutParams(lp);
         return cell;
     }
@@ -201,21 +217,22 @@ public class AddBillActivity extends Activity {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setBackground(Ui.strokeBg(this, Color.WHITE, 12, Ui.LINE));
+        box.setPadding(Ui.dp(this, 16), Ui.dp(this, 8), Ui.dp(this, 16), Ui.dp(this, 8));
         List<String> names = new ArrayList<>(store.accountNames());
         names.remove("未确认账户");
         fromSpinner = spinner(names);
         toSpinner = spinner(names);
         box.addView(labelWithSpinner("转出账户", fromSpinner));
-        box.addView(line());
+        box.addView(Ui.line(this));
         box.addView(labelWithSpinner("转入账户", toSpinner));
         transferArea.addView(box);
     }
 
     private LinearLayout labelWithSpinner(String label, Spinner spinner) {
         LinearLayout row = Ui.row(this);
-        row.setPadding(Ui.dp(this, 16), Ui.dp(this, 8), Ui.dp(this, 16), Ui.dp(this, 8));
-        row.addView(Ui.text(this, label, 20, Ui.MUTED, Typeface.NORMAL), new LinearLayout.LayoutParams(0, Ui.dp(this, 54), 1));
-        row.addView(spinner, new LinearLayout.LayoutParams(0, Ui.dp(this, 54), 1));
+        row.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 6));
+        row.addView(Ui.text(this, label, 16, Ui.MUTED, Typeface.NORMAL), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
+        row.addView(spinner, new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
         return row;
     }
 
@@ -228,11 +245,11 @@ public class AddBillActivity extends Activity {
         return spinner;
     }
 
-    private TextView chip(String label) {
-        TextView chip = Ui.text(this, label, 16, Color.BLACK, Typeface.NORMAL);
+    private TextView chipBtn(String label) {
+        TextView chip = Ui.text(this, label, 14, Ui.MUTED, Typeface.NORMAL);
         chip.setGravity(Gravity.CENTER);
-        chip.setBackground(Ui.bg(this, Color.WHITE, 999));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(this, 46), 1);
+        chip.setBackground(Ui.bg(this, Ui.CHIP_BG, 8));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(this, 42), 1);
         lp.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
         chip.setLayoutParams(lp);
         return chip;
@@ -241,50 +258,49 @@ public class AddBillActivity extends Activity {
     private Button keyButton(String key) {
         Button button = new Button(this);
         button.setText(key);
-        button.setTextSize(22);
-        button.setTextColor(Color.BLACK);
+        button.setTextSize(20);
+        button.setTextColor(Ui.INK);
         button.setAllCaps(false);
+
         if ("保存".equals(key)) {
             saveKeyButton = button;
             applySaveColor(button);
+        } else if ("⌫".equals(key) || "再记".equals(key)) {
+            button.setTextColor(Ui.MUTED);
+            button.setBackground(Ui.bg(this, Ui.CHIP_BG, 10));
         } else {
-            button.setBackground(Ui.bg(this, Color.WHITE, 12));
+            button.setBackground(Ui.bg(this, Color.WHITE, 10));
         }
         button.setOnClickListener(v -> handleKey(key));
+
         GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
-        lp.width = (getResources().getDisplayMetrics().widthPixels - Ui.dp(this, 36)) / 4 - Ui.dp(this, 8);
-        lp.height = Ui.dp(this, 62);
-        lp.setMargins(Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4));
+        int cols = 4;
+        int margin = Ui.dp(this, 3);
+        lp.width = (getResources().getDisplayMetrics().widthPixels - Ui.dp(this, 36)) / cols - margin * 2;
+        lp.height = Ui.dp(this, 54);
+        lp.setMargins(margin, margin, margin, margin);
         button.setLayoutParams(lp);
         return button;
     }
 
     private void applySaveColor(Button button) {
-        int color = "income".equals(type) ? Color.rgb(44, 188, 128) : ("transfer".equals(type) ? Ui.ACCENT : Ui.WARNING);
+        int color = "income".equals(type) ? Ui.SUCCESS : ("transfer".equals(type) ? Ui.TRANSFER : Ui.WARNING);
         button.setTextColor(Color.WHITE);
-        button.setBackground(Ui.bg(this, color, 12));
+        button.setBackground(Ui.bg(this, color, 10));
     }
 
     private List<String> currentCategories() {
         List<String> values = new ArrayList<>(store.categoryNames(type));
-        if (!values.isEmpty()) {
-            return values;
-        }
+        if (!values.isEmpty()) return values;
         String[] fallback = "income".equals(type) ? incomeCategories : expenseCategories;
-        for (String item : fallback) {
-            values.add(item);
-        }
+        for (String item : fallback) values.add(item);
         return values;
     }
 
     private String defaultCategory(String mode) {
-        if ("transfer".equals(mode)) {
-            return "转账";
-        }
+        if ("transfer".equals(mode)) return "转账";
         List<String> values = new ArrayList<>(store.categoryNames(mode));
-        if (!values.isEmpty()) {
-            return values.get(0);
-        }
+        if (!values.isEmpty()) return values.get(0);
         return "income".equals(mode) ? "工资" : "三餐";
     }
 
@@ -298,11 +314,13 @@ public class AddBillActivity extends Activity {
             amountText = "0";
             noteInput.setText("");
             refreshAmount();
-        } else if ("+".equals(key) || "-".equals(key)) {
+        } else if ("+".equals(key)) {
             return;
         } else {
-            if ("0".equals(amountText) && !".".equals(key)) {
+            if ("0".equals(amountText) && !".".equals(key) && !"00".equals(key)) {
                 amountText = key;
+            } else if ("00".equals(key) && "0".equals(amountText)) {
+                return;
             } else if (".".equals(key) && amountText.contains(".")) {
                 return;
             } else {
@@ -358,19 +376,29 @@ public class AddBillActivity extends Activity {
     }
 
     private String iconFor(String value) {
-        if (value.contains("餐")) return "♨";
-        if (value.contains("交通")) return "▣";
-        if (value.contains("工资")) return "¥";
-        if (value.contains("股票")) return "↗";
-        if (value.contains("红包")) return "囍";
-        if (value.contains("其它")) return "▦";
+        if (value.contains("三餐") || value.contains("餐")) return "🍚";
+        if (value.contains("零食")) return "🍪";
+        if (value.contains("衣服") || value.contains("美妆")) return "👗";
+        if (value.contains("交通") || value.contains("汽车") || value.contains("加油")) return "🚗";
+        if (value.contains("旅行")) return "✈️";
+        if (value.contains("孩子")) return "👶";
+        if (value.contains("宠物")) return "🐶";
+        if (value.contains("话费") || value.contains("网费")) return "📱";
+        if (value.contains("烟酒")) return "🍷";
+        if (value.contains("学习")) return "📚";
+        if (value.contains("日用")) return "🧴";
+        if (value.contains("住房") || value.contains("水电煤")) return "🏠";
+        if (value.contains("医疗")) return "💊";
+        if (value.contains("红包")) return "🧧";
+        if (value.contains("娱乐")) return "🎮";
+        if (value.contains("请客") || value.contains("送礼")) return "🎁";
+        if (value.contains("电器") || value.contains("数码")) return "🖥️";
+        if (value.contains("运动")) return "⚽";
+        if (value.contains("工资")) return "💰";
+        if (value.contains("生活费")) return "🏦";
+        if (value.contains("外快")) return "💸";
+        if (value.contains("股票") || value.contains("基金")) return "📈";
+        if (value.contains("其它")) return "🗂️";
         return value.substring(0, 1);
-    }
-
-    private View line() {
-        View line = new View(this);
-        line.setBackgroundColor(Ui.LINE);
-        line.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 1)));
-        return line;
     }
 }

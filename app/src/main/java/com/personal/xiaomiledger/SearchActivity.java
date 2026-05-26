@@ -25,7 +25,7 @@ public class SearchActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(Ui.PAPER);
+        Ui.applyBackground(this);
         store = new TransactionStore(this);
         buildUi();
         refresh("");
@@ -40,11 +40,11 @@ public class SearchActivity extends Activity {
         scroll.addView(root);
 
         LinearLayout top = Ui.row(this);
-        TextView back = Ui.text(this, "‹", 38, Ui.INK, Typeface.NORMAL);
+        TextView back = Ui.text(this, "‹", 34, Ui.INK, Typeface.NORMAL);
         back.setGravity(Gravity.CENTER);
         back.setOnClickListener(v -> finish());
-        top.addView(back, new LinearLayout.LayoutParams(Ui.dp(this, 42), Ui.dp(this, 42)));
-        TextView title = Ui.text(this, "搜索账单", 25, Ui.INK, Typeface.BOLD);
+        top.addView(back, new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40)));
+        TextView title = Ui.text(this, "搜索账单", 22, Ui.INK, Typeface.BOLD);
         top.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         root.addView(top);
         root.addView(Ui.spacer(this, 12));
@@ -52,7 +52,7 @@ public class SearchActivity extends Activity {
         searchInput = new EditText(this);
         searchInput.setSingleLine(true);
         searchInput.setHint("搜索：分类、备注、账户、金额");
-        searchInput.setTextSize(17);
+        searchInput.setTextSize(16);
         searchInput.setTextColor(Ui.INK);
         searchInput.setHintTextColor(Ui.MUTED);
         searchInput.setInputType(InputType.TYPE_CLASS_TEXT);
@@ -63,12 +63,13 @@ public class SearchActivity extends Activity {
             refresh(searchInput.getText().toString());
             return true;
         });
-        root.addView(searchInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 56)));
+        root.addView(searchInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 52)));
         root.addView(Ui.spacer(this, 10));
 
         Button searchButton = new Button(this);
         searchButton.setText("搜索");
         searchButton.setTextColor(Color.WHITE);
+        searchButton.setAllCaps(false);
         searchButton.setBackground(Ui.bg(this, Ui.ACCENT, 14));
         searchButton.setOnClickListener(v -> refresh(searchInput.getText().toString()));
         root.addView(searchButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 48)));
@@ -92,45 +93,32 @@ public class SearchActivity extends Activity {
     private void renderSummary(List<Transaction> transactions) {
         summary.removeAllViews();
         LinearLayout header = Ui.row(this);
-        header.addView(Ui.text(this, "搜索汇总", 21, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        TextView count = Ui.text(this, transactions.size() + " 笔账单", 15, Ui.MUTED, Typeface.NORMAL);
+        header.addView(Ui.text(this, "搜索汇总", 20, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView count = Ui.text(this, transactions.size() + " 笔账单", 14, Ui.MUTED, Typeface.NORMAL);
         count.setGravity(Gravity.END);
         header.addView(count);
         summary.addView(header);
         summary.addView(Ui.spacer(this, 12));
 
-        long expense = 0;
-        long income = 0;
-        long adjustment = 0;
-        long transfer = 0;
+        long expense = 0, income = 0, adjustment = 0, transfer = 0;
         for (Transaction tx : transactions) {
-            if ("income".equals(tx.type)) {
-                income += tx.amountCents;
-            } else if ("expense".equals(tx.type)) {
-                expense += tx.amountCents;
-            } else if ("adjustment".equals(tx.type)) {
-                adjustment += tx.amountCents;
-            } else if ("transfer".equals(tx.type)) {
-                transfer += tx.amountCents;
-            }
+            if ("income".equals(tx.type)) income += tx.amountCents;
+            else if ("expense".equals(tx.type)) expense += tx.amountCents;
+            else if ("adjustment".equals(tx.type)) adjustment += tx.amountCents;
+            else if ("transfer".equals(tx.type)) transfer += tx.amountCents;
         }
 
         LinearLayout row = Ui.row(this);
         row.addView(metric("总支出", PaymentParser.formatMoney(expense), Ui.WARNING));
-        row.addView(metric("总收入", PaymentParser.formatMoney(income), Ui.ACCENT));
+        row.addView(metric("总收入", PaymentParser.formatMoney(income), Ui.SUCCESS));
         row.addView(metric("结余", TransactionStore.formatMoneySigned(income - expense), Ui.INK));
         summary.addView(row);
-        if (adjustment > 0) {
-            summary.addView(Ui.spacer(this, 8));
-            summary.addView(Ui.text(this, "平账/调整：" + PaymentParser.formatMoney(adjustment), 15, Ui.MUTED, Typeface.NORMAL));
-        }
-        if (transfer > 0) {
-            summary.addView(Ui.text(this, "转账：" + PaymentParser.formatMoney(transfer), 15, Ui.MUTED, Typeface.NORMAL));
-        }
+        if (adjustment > 0) summary.addView(Ui.text(this, "平账/调整：" + PaymentParser.formatMoney(adjustment), 14, Ui.MUTED, Typeface.NORMAL));
+        if (transfer > 0) summary.addView(Ui.text(this, "转账：" + PaymentParser.formatMoney(transfer), 14, Ui.MUTED, Typeface.NORMAL));
     }
 
     private TextView metric(String label, String value, int color) {
-        TextView view = Ui.text(this, label + "\n" + value, 17, color, Typeface.BOLD);
+        TextView view = Ui.text(this, label + "\n" + value, 16, color, Typeface.BOLD);
         view.setGravity(Gravity.CENTER);
         view.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         return view;
@@ -140,11 +128,10 @@ public class SearchActivity extends Activity {
         list.removeAllViews();
         if (transactions.isEmpty()) {
             LinearLayout empty = Ui.card(this);
-            empty.addView(Ui.text(this, "没有找到匹配账单。", 16, Ui.MUTED, Typeface.NORMAL));
+            empty.addView(Ui.text(this, "没有找到匹配账单", 15, Ui.MUTED, Typeface.NORMAL));
             list.addView(empty);
             return;
         }
-
         String currentDate = "";
         LinearLayout dayCard = null;
         long dayExpense = 0;
@@ -156,8 +143,8 @@ public class SearchActivity extends Activity {
                 dayExpense = dayExpense(transactions, date);
                 dayCard = Ui.card(this);
                 LinearLayout header = Ui.row(this);
-                header.addView(Ui.text(this, date, 20, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-                TextView sum = Ui.text(this, dayExpense > 0 ? "支 ¥" + PaymentParser.formatMoney(dayExpense) : "", 17, Ui.INK, Typeface.BOLD);
+                header.addView(Ui.text(this, date, 18, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+                TextView sum = Ui.text(this, dayExpense > 0 ? "支 ¥" + PaymentParser.formatMoney(dayExpense) : "", 15, Ui.INK, Typeface.BOLD);
                 sum.setGravity(Gravity.END);
                 header.addView(sum);
                 dayCard.addView(header);
@@ -167,7 +154,7 @@ public class SearchActivity extends Activity {
             if (dayCard != null) {
                 dayCard.addView(billRow(tx));
                 if (i < transactions.size() - 1 && TransactionStore.formatDate(transactions.get(i + 1).occurredAt).equals(currentDate)) {
-                    dayCard.addView(line());
+                    dayCard.addView(Ui.line(this));
                 }
             }
         }
@@ -176,9 +163,7 @@ public class SearchActivity extends Activity {
     private long dayExpense(List<Transaction> transactions, String date) {
         long sum = 0;
         for (Transaction tx : transactions) {
-            if (date.equals(TransactionStore.formatDate(tx.occurredAt)) && "expense".equals(tx.type)) {
-                sum += tx.amountCents;
-            }
+            if (date.equals(TransactionStore.formatDate(tx.occurredAt)) && "expense".equals(tx.type)) sum += tx.amountCents;
         }
         return sum;
     }
@@ -187,17 +172,18 @@ public class SearchActivity extends Activity {
         LinearLayout row = Ui.row(this);
         row.setPadding(0, Ui.dp(this, 11), 0, Ui.dp(this, 11));
         row.setOnClickListener(v -> openTransaction(tx));
-        TextView icon = Ui.text(this, billIcon(tx), 19, billColor(tx), Typeface.BOLD);
-        icon.setGravity(Gravity.CENTER);
-        icon.setBackground(Ui.bg(this, billBg(tx), 999));
-        row.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
 
-        TextView info = Ui.text(this, title(tx) + "\n" + subTitle(tx), 16, Ui.INK, Typeface.NORMAL);
+        TextView icon = Ui.text(this, billIcon(tx), 15, billColor(tx), Typeface.BOLD);
+        icon.setGravity(Gravity.CENTER);
+        icon.setBackground(Ui.bg(this, billBg(tx), 8));
+        row.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 38), Ui.dp(this, 38)));
+
+        TextView info = Ui.text(this, title(tx) + "\n" + subTitle(tx), 15, Ui.INK, Typeface.NORMAL);
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        infoLp.setMargins(Ui.dp(this, 14), 0, Ui.dp(this, 8), 0);
+        infoLp.setMargins(Ui.dp(this, 12), 0, Ui.dp(this, 8), 0);
         row.addView(info, infoLp);
 
-        TextView amount = Ui.text(this, amount(tx), 20, billColor(tx), Typeface.BOLD);
+        TextView amount = Ui.text(this, amount(tx), 17, billColor(tx), Typeface.BOLD);
         amount.setGravity(Gravity.END);
         row.addView(amount);
         return row;
@@ -218,51 +204,38 @@ public class SearchActivity extends Activity {
     }
 
     private String subTitle(Transaction tx) {
-        if ("transfer".equals(tx.type)) {
-            return safe(tx.accountName) + " → " + safe(tx.targetAccountName);
-        }
+        if ("transfer".equals(tx.type)) return safe(tx.accountName) + " → " + safe(tx.targetAccountName);
         return safe(tx.merchant) + " · " + safe(tx.accountName);
     }
 
     private String amount(Transaction tx) {
-        if ("adjustment".equals(tx.type)) {
-            return "调 " + PaymentParser.formatMoney(tx.amountCents);
-        }
-        if ("transfer".equals(tx.type)) {
-            return "转 " + PaymentParser.formatMoney(tx.amountCents);
-        }
+        if ("adjustment".equals(tx.type)) return "调 " + PaymentParser.formatMoney(tx.amountCents);
+        if ("transfer".equals(tx.type)) return "转 " + PaymentParser.formatMoney(tx.amountCents);
         return ("income".equals(tx.type) ? "+" : "-") + PaymentParser.formatMoney(tx.amountCents);
     }
 
     private String billIcon(Transaction tx) {
-        if ("income".equals(tx.type)) return "入";
+        if ("income".equals(tx.type)) return "收";
         if ("transfer".equals(tx.type)) return "转";
-        if ("adjustment".equals(tx.type)) return "平";
+        if ("adjustment".equals(tx.type)) return "调";
         return "支";
     }
 
     private int billColor(Transaction tx) {
-        if ("income".equals(tx.type)) return Ui.ACCENT;
-        if ("transfer".equals(tx.type)) return Ui.ACCENT;
-        if ("adjustment".equals(tx.type)) return Color.rgb(92, 112, 140);
+        if ("income".equals(tx.type)) return Ui.SUCCESS;
+        if ("transfer".equals(tx.type)) return Ui.TRANSFER;
+        if ("adjustment".equals(tx.type)) return Ui.MUTED;
         return Ui.WARNING;
     }
 
     private int billBg(Transaction tx) {
-        if ("income".equals(tx.type)) return Color.rgb(232, 245, 255);
-        if ("transfer".equals(tx.type)) return Color.rgb(232, 245, 255);
-        if ("adjustment".equals(tx.type)) return Color.rgb(238, 241, 245);
-        return Color.rgb(255, 238, 241);
-    }
-
-    private View line() {
-        View line = new View(this);
-        line.setBackgroundColor(Ui.LINE);
-        line.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 1)));
-        return line;
+        if ("income".equals(tx.type)) return Ui.INCOME_BG;
+        if ("transfer".equals(tx.type)) return Ui.TRANSFER_BG;
+        if ("adjustment".equals(tx.type)) return Ui.ADJUST_BG;
+        return Ui.EXPENSE_BG;
     }
 
     private String safe(String value) {
-        return value == null || value.length() == 0 ? "未填写" : value;
+        return value == null || value.isEmpty() ? "未填写" : value;
     }
 }
