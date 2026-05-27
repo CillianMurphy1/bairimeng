@@ -4,7 +4,7 @@
 
 ## 当前版本
 
-- 版本标记：`v0.2.16-payment-dedup`
+- 版本标记：`v0.3.1`
 - 安装包名：`com.personal.xiaomiledger.v2`
 - 手机显示名：`白日夢新版`
 - 旧版包名：`com.personal.xiaomiledger`，因 debug 签名不一致，当前保留旧版并并存安装新版。
@@ -89,6 +89,11 @@ $env:Path='D:\xiaomi_app\.tools\jdk17\bin;D:\xiaomi_app\.tools\android-sdk\platf
 - 资产平账页面：`app/src/main/java/com/personal/xiaomiledger/AdjustBalanceActivity.java`
 
 ## 开发日志
+
+### 2026-05-27
+
+- v0.3.1：近期账单每条记录显示三行信息（分类标题加粗、商户·账户、精确时间到秒），金额右对齐，转账账单显示来源和目标账户。
+- v0.3.0：全面 UI 重设计，采用吉卜力/千与千寻动漫卡通风格。暖色调和纸质感配色（浓茶色文字、油屋红强调色、油屋金点缀），全局自定义背景图支持，12 个 Activity 全部统一新风格。卡片圆角增至 20dp，分类图标改为 emoji 表情，首页资产卡片、月度概览、快捷操作、FAB 按钮全部重排。
 
 ### 2026-05-26
 
