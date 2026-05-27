@@ -96,6 +96,7 @@ public class PaymentNotificationListener extends NotificationListenerService {
         }
         remember(payment.notificationKey);
         RecentPaymentGate.rememberBankExpense(this, payment);
+        RecentPaymentGate.rememberBankIncome(this, payment);
         String category = ClassificationRules.inferCategory(payment.rawText, payment.sourceApp, payment.merchant, payment.type);
         String account = store.inferAccount(payment.rawText, payment.sourceApp);
         store.logAutoRecord("recognized", payment.sourceApp, payment.rawText,

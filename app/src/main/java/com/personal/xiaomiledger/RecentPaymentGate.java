@@ -8,8 +8,9 @@ final class RecentPaymentGate {
     private static final String PREFS = "recent_payment_gate";
     private static final String KEYS = "keys";
     private static final String BANK_EXPENSES = "bank_expenses";
+    private static final String BANK_INCOMES = "bank_incomes";
     private static final int MAX_KEYS = 120;
-    private static final int MAX_BANK_EXPENSES = 40;
+    private static final int MAX_BANK_EVENTS = 40;
     private static final long CROSS_SOURCE_WINDOW_MS = 2000L;
 
     private RecentPaymentGate() {
@@ -31,45 +32,30 @@ final class RecentPaymentGate {
     }
 
     static boolean shouldSkipWechatAfterRecentBank(Context context, ParsedPayment payment) {
-        if (!isWechatExpense(payment) || payment.amountCents <= 0) {
+        if (payment == null || payment.amountCents <= 0) {
             return false;
         }
-        if (PaymentContextStore.isExplicitWechatWalletPayment(payment)) {
-            return false;
+        if (isWechatExpense(payment)) {
+            if (isWechatWalletExpense(payment, context)) return false;
+            return recentBankMatch(context, payment, BANK_EXPENSES);
         }
-        if (PaymentContextStore.hasRecentWechatWalletPaymentContext(context, payment)) {
-            return false;
+        if (isWechatRefundIncome(payment)) {
+            if (isWechatWalletRefund(payment)) return false;
+            return recentBankMatch(context, payment, BANK_INCOMES);
         }
-        long now = System.currentTimeMillis();
-        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        LinkedHashSet<String> records = new LinkedHashSet<>(prefs.getStringSet(BANK_EXPENSES, new LinkedHashSet<>()));
-        boolean matched = false;
-        boolean changed = false;
-        for (String record : new LinkedHashSet<>(records)) {
-            BankExpense expense = BankExpense.parse(record);
-            if (expense == null || now - expense.seenAt > CROSS_SOURCE_WINDOW_MS) {
-                records.remove(record);
-                changed = true;
-                continue;
-            }
-            if (expense.amountCents == payment.amountCents) {
-                matched = true;
-            }
-        }
-        if (changed) {
-            prefs.edit().putStringSet(BANK_EXPENSES, records).apply();
-        }
-        return matched;
+        return false;
     }
 
     static boolean shouldWaitForPossibleBankPayment(Context context, ParsedPayment payment) {
-        if (!isWechatExpense(payment) || payment.amountCents <= 0) {
-            return false;
+        if (payment == null || payment.amountCents <= 0) return false;
+        if (isWechatExpense(payment)) {
+            if (PaymentContextStore.isExplicitWechatWalletPayment(payment)) return false;
+            return !PaymentContextStore.hasRecentWechatWalletPaymentContext(context, payment);
         }
-        if (PaymentContextStore.isExplicitWechatWalletPayment(payment)) {
-            return false;
+        if (isWechatRefundIncome(payment)) {
+            return !isWechatWalletRefund(payment);
         }
-        return !PaymentContextStore.hasRecentWechatWalletPaymentContext(context, payment);
+        return false;
     }
 
     static long crossSourceWindowMs() {
@@ -77,7 +63,15 @@ final class RecentPaymentGate {
     }
 
     static void rememberBankExpense(Context context, ParsedPayment payment) {
-        if (!isBankExpense(payment) || payment.amountCents <= 0) {
+        rememberBankEvent(context, payment, BANK_EXPENSES, isBankExpense(payment));
+    }
+
+    static void rememberBankIncome(Context context, ParsedPayment payment) {
+        rememberBankEvent(context, payment, BANK_INCOMES, isBankIncome(payment));
+    }
+
+    private static void rememberBankEvent(Context context, ParsedPayment payment, String prefKey, boolean eligible) {
+        if (!eligible || payment.amountCents <= 0) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -85,18 +79,51 @@ final class RecentPaymentGate {
             return;
         }
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        LinkedHashSet<String> records = new LinkedHashSet<>(prefs.getStringSet(BANK_EXPENSES, new LinkedHashSet<>()));
+        LinkedHashSet<String> records = new LinkedHashSet<>(prefs.getStringSet(prefKey, new LinkedHashSet<>()));
         for (String record : new LinkedHashSet<>(records)) {
-            BankExpense expense = BankExpense.parse(record);
-            if (expense == null || now - expense.seenAt > CROSS_SOURCE_WINDOW_MS) {
+            BankEvent event = BankEvent.parse(record);
+            if (event == null || now - event.seenAt > CROSS_SOURCE_WINDOW_MS) {
                 records.remove(record);
             }
         }
         records.add(payment.amountCents + "|" + now);
-        while (records.size() > MAX_BANK_EXPENSES) {
+        while (records.size() > MAX_BANK_EVENTS) {
             records.remove(records.iterator().next());
         }
-        prefs.edit().putStringSet(BANK_EXPENSES, records).apply();
+        prefs.edit().putStringSet(prefKey, records).apply();
+    }
+
+    private static boolean recentBankMatch(Context context, ParsedPayment payment, String prefKey) {
+        long now = System.currentTimeMillis();
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        LinkedHashSet<String> records = new LinkedHashSet<>(prefs.getStringSet(prefKey, new LinkedHashSet<>()));
+        boolean matched = false;
+        boolean changed = false;
+        for (String record : new LinkedHashSet<>(records)) {
+            BankEvent event = BankEvent.parse(record);
+            if (event == null || now - event.seenAt > CROSS_SOURCE_WINDOW_MS) {
+                records.remove(record);
+                changed = true;
+                continue;
+            }
+            if (event.amountCents == payment.amountCents) {
+                matched = true;
+            }
+        }
+        if (changed) {
+            prefs.edit().putStringSet(prefKey, records).apply();
+        }
+        return matched;
+    }
+
+    private static boolean isWechatWalletExpense(ParsedPayment payment, Context context) {
+        if (PaymentContextStore.isExplicitWechatWalletPayment(payment)) return true;
+        return PaymentContextStore.hasRecentWechatWalletPaymentContext(context, payment);
+    }
+
+    private static boolean isWechatWalletRefund(ParsedPayment payment) {
+        String raw = payment.rawText == null ? "" : payment.rawText;
+        return raw.contains("退回零钱");
     }
 
     private static String fingerprint(ParsedPayment payment) {
@@ -113,7 +140,7 @@ final class RecentPaymentGate {
         return payment.sourceApp + "|" + payment.type + "|" + payment.amountCents + "|" + bucket + extra;
     }
 
-    private static boolean isWechatExpense(ParsedPayment payment) {
+    static boolean isWechatExpense(ParsedPayment payment) {
         if (payment == null || !"expense".equals(payment.type)) {
             return false;
         }
@@ -122,9 +149,28 @@ final class RecentPaymentGate {
         return "微信".equals(source) || "com.tencent.mm".equals(pkg);
     }
 
+    static boolean isWechatRefundIncome(ParsedPayment payment) {
+        if (payment == null || !"income".equals(payment.type)) {
+            return false;
+        }
+        String source = payment.sourceApp == null ? "" : payment.sourceApp;
+        String pkg = payment.sourcePackage == null ? "" : payment.sourcePackage;
+        if (!"微信".equals(source) && !"com.tencent.mm".equals(pkg)) {
+            return false;
+        }
+        String raw = payment.rawText == null ? "" : payment.rawText;
+        return raw.contains("退款") || raw.contains("退回");
+    }
+
     private static boolean isBankExpense(ParsedPayment payment) {
         return payment != null
                 && "expense".equals(payment.type)
+                && PaymentContextStore.isBankSource(payment);
+    }
+
+    static boolean isBankIncome(ParsedPayment payment) {
+        return payment != null
+                && "income".equals(payment.type)
                 && PaymentContextStore.isBankSource(payment);
     }
 
@@ -142,16 +188,16 @@ final class RecentPaymentGate {
                 || "com.taobao.taobao".equals(pkg);
     }
 
-    private static final class BankExpense {
+    private static final class BankEvent {
         final long amountCents;
         final long seenAt;
 
-        BankExpense(long amountCents, long seenAt) {
+        BankEvent(long amountCents, long seenAt) {
             this.amountCents = amountCents;
             this.seenAt = seenAt;
         }
 
-        static BankExpense parse(String value) {
+        static BankEvent parse(String value) {
             if (value == null) {
                 return null;
             }
@@ -160,7 +206,7 @@ final class RecentPaymentGate {
                 return null;
             }
             try {
-                return new BankExpense(Long.parseLong(parts[0]), Long.parseLong(parts[1]));
+                return new BankEvent(Long.parseLong(parts[0]), Long.parseLong(parts[1]));
             } catch (NumberFormatException ignored) {
                 return null;
             }
