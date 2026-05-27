@@ -26,6 +26,7 @@ public class CalendarActivity extends Activity {
     private LinearLayout dayList;
     private GridLayout grid;
     private ScrollView scroll;
+    private LinearLayout summaryRow;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +50,11 @@ public class CalendarActivity extends Activity {
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
         body.setPadding(Ui.dp(this, 14), Ui.dp(this, 8), Ui.dp(this, 14), Ui.dp(this, 16));
+
+        summaryRow = new LinearLayout(this);
+        summaryRow.setOrientation(LinearLayout.HORIZONTAL);
+        body.addView(summaryRow);
+        body.addView(Ui.spacer(this, 10));
 
         body.addView(monthNav());
         body.addView(Ui.spacer(this, 4));
@@ -85,9 +91,9 @@ public class CalendarActivity extends Activity {
     private LinearLayout topBar() {
         LinearLayout bar = Ui.row(this);
         bar.setBackgroundColor(Color.WHITE);
-        int top = Ui.dp(this, 8) + statusBarHeight();
+        int top = statusBarHeight();
         bar.setPadding(Ui.dp(this, 14), top, Ui.dp(this, 18), Ui.dp(this, 10));
-        bar.setMinimumHeight(Ui.dp(this, 48) + statusBarHeight());
+        bar.setMinimumHeight(Ui.dp(this, 40) + statusBarHeight());
 
         TextView back = Ui.text(this, "←", 24, Ui.INK, Typeface.NORMAL);
         back.setGravity(Gravity.CENTER);
@@ -143,8 +149,46 @@ public class CalendarActivity extends Activity {
 
     private void refresh() {
         monthTitle.setText(yearMonthTitle());
+        updateSummary();
         buildCalendarGrid();
-        showDayDetail(null);
+        Calendar today = Calendar.getInstance();
+        if (viewMonth.get(Calendar.YEAR) == today.get(Calendar.YEAR)
+                && viewMonth.get(Calendar.MONTH) == today.get(Calendar.MONTH)) {
+            showDayDetail(today.get(Calendar.DAY_OF_MONTH));
+        } else {
+            showDayDetail(null);
+        }
+    }
+
+    private void updateSummary() {
+        summaryRow.removeAllViews();
+        Calendar cal = (Calendar) viewMonth.clone();
+        cal.set(Calendar.DAY_OF_MONTH, 1);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        long start = cal.getTimeInMillis();
+        cal.add(Calendar.MONTH, 1);
+        long end = cal.getTimeInMillis();
+
+        long income = store.sumBetween("income", start, end);
+        long expense = store.sumBetween("expense", start, end);
+        long balance = income - expense;
+
+        summaryRow.addView(summaryChip("收入", PaymentParser.formatMoney(income), Ui.SUCCESS, Ui.INCOME_BG));
+        summaryRow.addView(summaryChip("支出", PaymentParser.formatMoney(expense), Ui.WARNING, Ui.EXPENSE_BG));
+        summaryRow.addView(summaryChip("结余", TransactionStore.formatMoneySigned(balance), Ui.INK, Ui.CHIP_BG));
+    }
+
+    private TextView summaryChip(String label, String value, int color, int bg) {
+        TextView tv = Ui.text(this, label + "  " + value, 15, color, Typeface.BOLD);
+        tv.setGravity(Gravity.CENTER);
+        tv.setBackground(Ui.bg(this, bg, 12));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(this, 44), 1);
+        lp.setMargins(Ui.dp(this, 3), 0, Ui.dp(this, 3), 0);
+        tv.setLayoutParams(lp);
+        return tv;
     }
 
     private String yearMonthTitle() {

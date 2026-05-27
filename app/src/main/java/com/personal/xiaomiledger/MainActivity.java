@@ -136,9 +136,9 @@ public class MainActivity extends Activity {
     private LinearLayout topBar() {
         LinearLayout bar = Ui.row(this);
         bar.setBackgroundColor(Color.WHITE);
-        int top = Ui.dp(this, 8) + statusBarHeight();
+        int top = statusBarHeight();
         bar.setPadding(Ui.dp(this, 18), top, Ui.dp(this, 18), Ui.dp(this, 10));
-        bar.setMinimumHeight(Ui.dp(this, 56) + statusBarHeight());
+        bar.setMinimumHeight(Ui.dp(this, 48) + statusBarHeight());
         if (Build.VERSION.SDK_INT >= 21) {
             bar.setElevation(Ui.dp(this, 1));
         }
@@ -211,6 +211,19 @@ public class MainActivity extends Activity {
     }
 
     // ── refresh ──
+
+    private long[] selectedMonthRange() {
+        Calendar cal = (Calendar) selectedMonth.clone();
+        cal.set(Calendar.DAY_OF_MONTH, 1);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        long start = cal.getTimeInMillis();
+        cal.add(Calendar.MONTH, 1);
+        long end = cal.getTimeInMillis();
+        return new long[]{start, end};
+    }
 
     private void refresh() {
         content.removeAllViews();
@@ -301,7 +314,7 @@ public class MainActivity extends Activity {
     // ── month overview ──
 
     private void addMonthOverviewCard() {
-        long[] range = TransactionStore.currentMonthRange();
+        long[] range = selectedMonthRange();
         long income = store.sumBetween("income", range[0], range[1]);
         long expense = store.sumBetween("expense", range[0], range[1]);
 
@@ -419,11 +432,11 @@ public class MainActivity extends Activity {
         LinearLayout header = Ui.row(this);
         header.addView(Ui.text(this, "最近账单", 20, Ui.INK, Typeface.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         TextView more = Ui.text(this, "全部", 14, Ui.ACCENT, Typeface.BOLD);
-        more.setOnClickListener(v -> startActivity(new Intent(this, SearchActivity.class)));
+        more.setOnClickListener(v -> startActivity(new Intent(this, CalendarActivity.class)));
         header.addView(more);
         card.addView(header);
 
-        List<Transaction> transactions = store.recent(6);
+        List<Transaction> transactions = store.recent(5);
         if (transactions.isEmpty()) {
             TextView empty = Ui.text(this, "还没有账单，点 + 记一笔吧", 15, Ui.MUTED, Typeface.NORMAL);
             empty.setGravity(Gravity.CENTER);
