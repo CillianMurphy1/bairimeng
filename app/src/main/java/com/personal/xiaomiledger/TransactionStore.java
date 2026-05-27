@@ -715,7 +715,7 @@ final class TransactionStore extends SQLiteOpenHelper {
     }
 
     static String formatDateTime(long millis) {
-        return new SimpleDateFormat("MM-dd HH:mm", Locale.CHINA).format(new Date(millis));
+        return new SimpleDateFormat("MM-dd HH:mm:ss", Locale.CHINA).format(new Date(millis));
     }
 
     static String formatDate(long millis) {

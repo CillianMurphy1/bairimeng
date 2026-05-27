@@ -435,12 +435,17 @@ public class MainActivity extends Activity {
         icon.setBackground(Ui.bg(this, billBg(tx), 8));
         row.addView(icon, new LinearLayout.LayoutParams(Ui.dp(this, 38), Ui.dp(this, 38)));
 
-        TextView info = Ui.text(this, billTitle(tx) + "\n" + safe(tx.accountName), 15, Ui.INK, Typeface.NORMAL);
+        LinearLayout info = new LinearLayout(this);
+        info.setOrientation(LinearLayout.VERTICAL);
+        info.addView(Ui.text(this, billTitle(tx), 16, Ui.INK, Typeface.BOLD));
+        info.addView(Ui.text(this, billSubTitle(tx), 14, Ui.INK, Typeface.NORMAL));
+        info.addView(Ui.text(this, TransactionStore.formatDateTime(tx.occurredAt), 13, Ui.MUTED, Typeface.NORMAL));
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         infoLp.setMargins(Ui.dp(this, 12), 0, Ui.dp(this, 8), 0);
         row.addView(info, infoLp);
 
         TextView amount = Ui.text(this, billAmount(tx), 17, billColor(tx), Typeface.BOLD);
+        amount.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         row.addView(amount);
         return row;
     }
@@ -614,6 +619,12 @@ public class MainActivity extends Activity {
         if ("adjustment".equals(tx.type)) return "平账";
         if ("transfer".equals(tx.type)) return "转账";
         return safe(tx.category);
+    }
+
+    private String billSubTitle(Transaction tx) {
+        if ("transfer".equals(tx.type)) return safe(tx.accountName) + " -> " + safe(tx.targetAccountName);
+        if (tx.merchant != null && !tx.merchant.isEmpty()) return safe(tx.merchant) + " · " + safe(tx.accountName);
+        return safe(tx.accountName);
     }
 
     private String billAmount(Transaction tx) {
