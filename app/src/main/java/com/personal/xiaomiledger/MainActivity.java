@@ -54,6 +54,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refresh();
+        LedgerWidgetProvider.updateAllWidgets(this);
     }
 
     @Override
@@ -151,6 +152,12 @@ public class MainActivity extends Activity {
         statsBtn.setPadding(Ui.dp(this, 10), 0, Ui.dp(this, 10), 0);
         statsBtn.setOnClickListener(v -> startActivity(new Intent(this, StatsActivity.class)));
         bar.addView(statsBtn);
+
+        TextView calBtn = Ui.text(this, "日历", 15, Ui.MUTED, Typeface.NORMAL);
+        calBtn.setGravity(Gravity.CENTER);
+        calBtn.setPadding(Ui.dp(this, 10), 0, Ui.dp(this, 10), 0);
+        calBtn.setOnClickListener(v -> startActivity(new Intent(this, CalendarActivity.class)));
+        bar.addView(calBtn);
 
         TextView searchBtn = Ui.text(this, "搜索", 15, Ui.MUTED, Typeface.NORMAL);
         searchBtn.setGravity(Gravity.CENTER);
@@ -486,38 +493,59 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.HORIZONTAL);
 
+        int drawerWidth = (int) (getResources().getDisplayMetrics().widthPixels * 0.74f);
         ScrollView drawerScroll = new ScrollView(this);
-        drawerScroll.setBackgroundColor(Color.WHITE);
+        drawerScroll.setBackgroundColor(Ui.PANEL);
         drawerScroll.setFillViewport(true);
-        root.addView(drawerScroll, new LinearLayout.LayoutParams((int) (getResources().getDisplayMetrics().widthPixels * 0.70f), ViewGroup.LayoutParams.MATCH_PARENT));
+        root.addView(drawerScroll, new LinearLayout.LayoutParams(drawerWidth, ViewGroup.LayoutParams.MATCH_PARENT));
 
         LinearLayout drawer = new LinearLayout(this);
         drawer.setOrientation(LinearLayout.VERTICAL);
-        drawer.setBackgroundColor(Color.WHITE);
-        drawer.setPadding(Ui.dp(this, 28), Ui.dp(this, 56), Ui.dp(this, 20), Ui.dp(this, 20));
+        drawer.setBackgroundColor(Ui.PANEL);
+        drawer.setPadding(Ui.dp(this, 28), Ui.dp(this, 56), Ui.dp(this, 24), Ui.dp(this, 28));
         drawerScroll.addView(drawer, new ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView avatar = Ui.text(this, "夢", 34, Color.WHITE, Typeface.BOLD);
+        // ── header ──
+        TextView avatar = Ui.text(this, "夢", 30, Color.WHITE, Typeface.BOLD);
         avatar.setGravity(Gravity.CENTER);
-        avatar.setBackground(Ui.bg(this, Color.rgb(246, 210, 74), 999));
-        drawer.addView(avatar, new LinearLayout.LayoutParams(Ui.dp(this, 88), Ui.dp(this, 88)));
-        drawer.addView(Ui.spacer(this, 18));
-        drawer.addView(Ui.text(this, "白日夢", 24, Ui.INK, Typeface.BOLD));
-        drawer.addView(Ui.text(this, "本地私用记账", 15, Ui.MUTED, Typeface.NORMAL));
-        drawer.addView(Ui.spacer(this, 36));
-        drawer.addView(drawerItem("▣", "我的账本", "日常账本", v -> dialog.dismiss()));
-        drawer.addView(drawerItem("¥", "报销管理", "", v -> Toast.makeText(this, "报销管理下一版继续补", Toast.LENGTH_SHORT).show()));
-        drawer.addView(drawerItem("⌕", "搜索账单", "", v -> { dialog.dismiss(); startActivity(new Intent(this, SearchActivity.class)); }));
-        drawer.addView(drawerItem("▥", "统计分析", "", v -> { dialog.dismiss(); startActivity(new Intent(this, StatsActivity.class)); }));
-        drawer.addView(drawerItem("▤", "预算管理", "", v -> { dialog.dismiss(); startActivity(new Intent(this, BudgetActivity.class)); }));
-        drawer.addView(drawerItem("▦", "分类管理", "", v -> { dialog.dismiss(); startActivity(new Intent(this, CategoryManageActivity.class)); }));
-        drawer.addView(drawerItem("◎", "自动记账日志", "", v -> { dialog.dismiss(); startActivity(new Intent(this, AutoLogActivity.class)); }));
-        drawer.addView(drawerItem("⇄", "分期·周期", "", v -> Toast.makeText(this, "周期账单下一版继续补", Toast.LENGTH_SHORT).show()));
-        drawer.addView(drawerItem("●", "存钱计划", "", v -> Toast.makeText(this, "存钱计划下一版继续补", Toast.LENGTH_SHORT).show()));
-        drawer.addView(drawerItem("⚙", "设置·关于", "", v -> { dialog.dismiss(); startActivity(new Intent(this, SettingsActivity.class)); }));
+        avatar.setBackground(Ui.bg(this, Ui.ACCENT_GOLD, 999));
+        drawer.addView(avatar, new LinearLayout.LayoutParams(Ui.dp(this, 72), Ui.dp(this, 72)));
+        drawer.addView(Ui.spacer(this, 16));
+        drawer.addView(Ui.text(this, "白日夢", 26, Ui.INK, Typeface.BOLD));
+        drawer.addView(Ui.spacer(this, 4));
+        drawer.addView(Ui.text(this, "本地私用记账 · 油屋风格", 14, Ui.MUTED, Typeface.NORMAL));
+        drawer.addView(Ui.spacer(this, 6));
+        drawer.addView(Ui.line(this));
+        drawer.addView(Ui.spacer(this, 20));
 
+        // ── 功能 ──
+        drawer.addView(drawerSection("功能"));
+        drawer.addView(drawerItem("📅", "日历视图", v -> { dialog.dismiss(); startActivity(new Intent(this, CalendarActivity.class)); }));
+        drawer.addView(drawerItem("🔍", "搜索账单", v -> { dialog.dismiss(); startActivity(new Intent(this, SearchActivity.class)); }));
+        drawer.addView(drawerItem("📊", "统计分析", v -> { dialog.dismiss(); startActivity(new Intent(this, StatsActivity.class)); }));
+        drawer.addView(Ui.spacer(this, 14));
+
+        // ── 管理 ──
+        drawer.addView(drawerSection("管理"));
+        drawer.addView(drawerItem("💰", "预算管理", v -> { dialog.dismiss(); startActivity(new Intent(this, BudgetActivity.class)); }));
+        drawer.addView(drawerItem("📂", "分类管理", v -> { dialog.dismiss(); startActivity(new Intent(this, CategoryManageActivity.class)); }));
+        drawer.addView(drawerItem("🔄", "周期账单", v -> Toast.makeText(this, "周期账单下一版继续补", Toast.LENGTH_SHORT).show(), true));
+        drawer.addView(Ui.spacer(this, 14));
+
+        // ── 工具 ──
+        drawer.addView(drawerSection("工具"));
+        drawer.addView(drawerItem("🤖", "自动记账日志", v -> { dialog.dismiss(); startActivity(new Intent(this, AutoLogActivity.class)); }));
+        drawer.addView(drawerItem("💼", "报销管理", v -> Toast.makeText(this, "报销管理下一版继续补", Toast.LENGTH_SHORT).show(), true));
+        drawer.addView(drawerItem("🎯", "存钱计划", v -> Toast.makeText(this, "存钱计划下一版继续补", Toast.LENGTH_SHORT).show(), true));
+        drawer.addView(Ui.spacer(this, 14));
+
+        // ── 其他 ──
+        drawer.addView(drawerSection("其他"));
+        drawer.addView(drawerItem("⚙️", "设置·关于", v -> { dialog.dismiss(); startActivity(new Intent(this, SettingsActivity.class)); }));
+
+        // shade
         View shade = new View(this);
-        shade.setBackgroundColor(Color.argb(150, 0, 0, 0));
+        shade.setBackgroundColor(Color.argb(160, 0, 0, 0));
         shade.setOnClickListener(v -> dialog.dismiss());
         root.addView(shade, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
 
@@ -534,19 +562,38 @@ public class MainActivity extends Activity {
         }
     }
 
-    private LinearLayout drawerItem(String icon, String title, String tail, View.OnClickListener listener) {
+    private TextView drawerSection(String title) {
+        TextView tv = Ui.text(this, title, 12, Ui.MUTED, Typeface.BOLD);
+        tv.setPadding(Ui.dp(this, 4), Ui.dp(this, 4), 0, Ui.dp(this, 6));
+        return tv;
+    }
+
+    private LinearLayout drawerItem(String icon, String title, View.OnClickListener listener) {
+        return drawerItem(icon, title, listener, false);
+    }
+
+    private LinearLayout drawerItem(String icon, String title, View.OnClickListener listener, boolean comingSoon) {
         LinearLayout row = Ui.row(this);
-        row.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 12));
+        row.setPadding(Ui.dp(this, 8), Ui.dp(this, 11), Ui.dp(this, 8), Ui.dp(this, 11));
         row.setOnClickListener(listener);
-        TextView i = Ui.text(this, icon, 26, Ui.MUTED, Typeface.BOLD);
+        row.setClickable(true);
+        Ui.rippleMasked(row);
+
+        TextView i = Ui.text(this, icon, 22, comingSoon ? Ui.MUTED : Ui.INK, Typeface.NORMAL);
         i.setGravity(Gravity.CENTER);
-        row.addView(i, new LinearLayout.LayoutParams(Ui.dp(this, 50), Ui.dp(this, 50)));
-        TextView t = Ui.text(this, title, 20, Ui.INK, Typeface.NORMAL);
+        row.addView(i, new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
+
+        TextView t = Ui.text(this, title, 18, comingSoon ? Ui.MUTED : Ui.INK, Typeface.NORMAL);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
         lp.setMargins(Ui.dp(this, 14), 0, 0, 0);
         row.addView(t, lp);
-        if (tail.length() > 0) {
-            row.addView(Ui.text(this, tail, 14, Ui.MUTED, Typeface.NORMAL));
+
+        if (comingSoon) {
+            TextView tag = Ui.text(this, "待做", 11, Ui.MUTED, Typeface.NORMAL);
+            tag.setGravity(Gravity.CENTER);
+            tag.setBackground(Ui.bg(this, Ui.LINE, 999));
+            tag.setPadding(Ui.dp(this, 8), Ui.dp(this, 2), Ui.dp(this, 8), Ui.dp(this, 2));
+            row.addView(tag);
         }
         return row;
     }

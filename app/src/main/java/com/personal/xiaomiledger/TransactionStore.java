@@ -388,6 +388,20 @@ final class TransactionStore extends SQLiteOpenHelper {
         return results;
     }
 
+    List<Transaction> between(long startMillis, long endMillis) {
+        ArrayList<Transaction> results = new ArrayList<>();
+        try (Cursor cursor = getReadableDatabase().query(
+                "transactions", null,
+                "occurred_at >= ? AND occurred_at < ?",
+                new String[]{String.valueOf(startMillis), String.valueOf(endMillis)},
+                null, null, "occurred_at DESC")) {
+            while (cursor.moveToNext()) {
+                results.add(fromCursor(cursor));
+            }
+        }
+        return results;
+    }
+
     List<Transaction> search(String query, int limit) {
         String value = query == null ? "" : query.trim();
         if (value.length() == 0) {

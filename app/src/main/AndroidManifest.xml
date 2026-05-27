@@ -56,6 +56,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".CalendarActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
@@ -86,5 +90,16 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_payment_service" />
         </service>
+
+        <receiver
+            android:name=".LedgerWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/ledger_widget_info" />
+        </receiver>
     </application>
 </manifest>
