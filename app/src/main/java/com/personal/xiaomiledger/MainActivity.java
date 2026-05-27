@@ -128,11 +128,17 @@ public class MainActivity extends Activity {
 
     // ── top bar ──
 
+    private int statusBarHeight() {
+        int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        return id > 0 ? getResources().getDimensionPixelSize(id) : 0;
+    }
+
     private LinearLayout topBar() {
         LinearLayout bar = Ui.row(this);
         bar.setBackgroundColor(Color.WHITE);
-        bar.setPadding(Ui.dp(this, 18), Ui.dp(this, 14), Ui.dp(this, 18), Ui.dp(this, 10));
-        bar.setMinimumHeight(Ui.dp(this, 72));
+        int top = Ui.dp(this, 8) + statusBarHeight();
+        bar.setPadding(Ui.dp(this, 18), top, Ui.dp(this, 18), Ui.dp(this, 10));
+        bar.setMinimumHeight(Ui.dp(this, 56) + statusBarHeight());
         if (Build.VERSION.SDK_INT >= 21) {
             bar.setElevation(Ui.dp(this, 1));
         }
@@ -149,21 +155,21 @@ public class MainActivity extends Activity {
 
         TextView statsBtn = Ui.text(this, "统计", 15, Ui.MUTED, Typeface.NORMAL);
         statsBtn.setGravity(Gravity.CENTER);
-        statsBtn.setPadding(Ui.dp(this, 10), 0, Ui.dp(this, 10), 0);
+        statsBtn.setClickable(true);
         statsBtn.setOnClickListener(v -> startActivity(new Intent(this, StatsActivity.class)));
-        bar.addView(statsBtn);
+        bar.addView(statsBtn, new LinearLayout.LayoutParams(Ui.dp(this, 48), Ui.dp(this, 48)));
 
         TextView calBtn = Ui.text(this, "日历", 15, Ui.MUTED, Typeface.NORMAL);
         calBtn.setGravity(Gravity.CENTER);
-        calBtn.setPadding(Ui.dp(this, 10), 0, Ui.dp(this, 10), 0);
+        calBtn.setClickable(true);
         calBtn.setOnClickListener(v -> startActivity(new Intent(this, CalendarActivity.class)));
-        bar.addView(calBtn);
+        bar.addView(calBtn, new LinearLayout.LayoutParams(Ui.dp(this, 48), Ui.dp(this, 48)));
 
         TextView searchBtn = Ui.text(this, "搜索", 15, Ui.MUTED, Typeface.NORMAL);
         searchBtn.setGravity(Gravity.CENTER);
-        searchBtn.setPadding(Ui.dp(this, 10), 0, 0, 0);
+        searchBtn.setClickable(true);
         searchBtn.setOnClickListener(v -> startActivity(new Intent(this, SearchActivity.class)));
-        bar.addView(searchBtn);
+        bar.addView(searchBtn, new LinearLayout.LayoutParams(Ui.dp(this, 48), Ui.dp(this, 48)));
 
         return bar;
     }

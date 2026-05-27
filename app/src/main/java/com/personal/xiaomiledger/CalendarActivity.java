@@ -18,7 +18,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Map;
 
 public class CalendarActivity extends Activity {
     private TransactionStore store;
@@ -40,6 +39,7 @@ public class CalendarActivity extends Activity {
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         page.setBackgroundColor(Ui.PAPER);
+        page.setClipToPadding(false);
 
         page.addView(topBar());
 
@@ -77,11 +77,17 @@ public class CalendarActivity extends Activity {
         refresh();
     }
 
+    private int statusBarHeight() {
+        int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        return id > 0 ? getResources().getDimensionPixelSize(id) : 0;
+    }
+
     private LinearLayout topBar() {
         LinearLayout bar = Ui.row(this);
         bar.setBackgroundColor(Color.WHITE);
-        bar.setPadding(Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 18), Ui.dp(this, 10));
-        bar.setMinimumHeight(Ui.dp(this, 68));
+        int top = Ui.dp(this, 8) + statusBarHeight();
+        bar.setPadding(Ui.dp(this, 14), top, Ui.dp(this, 18), Ui.dp(this, 10));
+        bar.setMinimumHeight(Ui.dp(this, 48) + statusBarHeight());
 
         TextView back = Ui.text(this, "←", 24, Ui.INK, Typeface.NORMAL);
         back.setGravity(Gravity.CENTER);
