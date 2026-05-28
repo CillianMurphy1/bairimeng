@@ -273,10 +273,12 @@ public class MainActivity extends Activity {
         brand.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(brand, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
-        // eye toggle
-        TextView eyeBtn = Ui.text(this, allHidden ? "👁‍" : "👁", 20, Color.WHITE, Typeface.NORMAL);
+        // sun/moon toggle
+        int sunColor = Color.rgb(255, 215, 0); // gold
+        int moonColor = Color.rgb(66, 133, 244); // blue
+        TextView eyeBtn = Ui.text(this, allHidden ? "☾" : "☀", 22, allHidden ? moonColor : sunColor, Typeface.NORMAL);
         eyeBtn.setGravity(Gravity.CENTER);
-        eyeBtn.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 8), 0);
+        eyeBtn.setPadding(Ui.dp(this, 6), 0, Ui.dp(this, 6), 0);
         eyeBtn.setOnClickListener(v -> {
             List<Account> freshAccounts = store.accounts();
             if (PrefsManager.areAllBalancesHidden(MainActivity.this, freshAccounts)) {
@@ -413,7 +415,9 @@ public class MainActivity extends Activity {
 
         List<Account> accounts = store.accounts();
         final boolean allHidden = PrefsManager.areAllBalancesHidden(this, accounts);
-        TextView eyeBtn = Ui.text(this, allHidden ? "👁‍" : "👁", 20, allHidden ? Ui.MUTED : Ui.INK, Typeface.NORMAL);
+        int sunColor = Color.rgb(255, 215, 0);
+        int moonColor = Color.rgb(135, 206, 250);
+        TextView eyeBtn = Ui.text(this, allHidden ? "☾" : "☀", 22, allHidden ? moonColor : sunColor, Typeface.NORMAL);
         eyeBtn.setGravity(Gravity.CENTER);
         eyeBtn.setPadding(Ui.dp(this, 6), 0, Ui.dp(this, 8), 0);
         eyeBtn.setOnClickListener(v -> {
@@ -462,10 +466,12 @@ public class MainActivity extends Activity {
         TextView balance = Ui.text(this, balanceText, 18, hidden ? Ui.MUTED : Ui.INK, Typeface.NORMAL);
         row.addView(balance);
 
-        // per-account eye
-        TextView eye = Ui.text(this, hidden ? "👁‍" : "👁", 16, hidden ? Ui.MUTED : Ui.INK, Typeface.NORMAL);
+        // per-account sun/moon
+        int sunColor = Color.rgb(255, 215, 0);
+        int moonColor = Color.rgb(135, 206, 250);
+        TextView eye = Ui.text(this, hidden ? "☾" : "☀", 18, hidden ? moonColor : sunColor, Typeface.NORMAL);
         eye.setGravity(Gravity.CENTER);
-        eye.setPadding(Ui.dp(this, 6), 0, 0, 0);
+        eye.setPadding(Ui.dp(this, 4), 0, 0, 0);
         eye.setClickable(true);
         eye.setOnClickListener(v -> {
             PrefsManager.toggleAccountBalanceHidden(MainActivity.this, account.name);
