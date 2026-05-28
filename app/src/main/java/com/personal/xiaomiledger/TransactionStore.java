@@ -14,7 +14,7 @@ import java.util.Locale;
 
 final class TransactionStore extends SQLiteOpenHelper {
     private static final String DB_NAME = "personal_ledger.db";
-    private static final int DB_VERSION = 5;
+    private static final int DB_VERSION = 6;
 
     TransactionStore(Context context) {
         super(context.getApplicationContext(), DB_NAME, null, DB_VERSION);
@@ -58,6 +58,9 @@ final class TransactionStore extends SQLiteOpenHelper {
             safeAddColumn(db, "accounts", "is_active INTEGER NOT NULL DEFAULT 1");
         }
         if (oldVersion < 5) {
+            seedDefaultAccounts(db);
+        }
+        if (oldVersion < 6) {
             seedDefaultAccounts(db);
         }
     }
@@ -183,6 +186,7 @@ final class TransactionStore extends SQLiteOpenHelper {
                 {"中国银行", "银行卡"},
                 {"交通银行", "银行卡"},
                 {"招商银行", "银行卡"},
+                {"浙商银行", "银行卡"},
                 {"微信零钱", "虚拟账户"},
                 {"支付宝余额", "虚拟账户"},
                 {"京东金融", "投资账户"},

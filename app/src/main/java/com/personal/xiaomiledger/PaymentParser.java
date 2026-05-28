@@ -19,7 +19,8 @@ final class PaymentParser {
             "com.chinamworld.main",
             "com.chinamworld.bocmbci",
             "com.bankcomm.Bankcomm",
-            "cmb.pb"
+            "cmb.pb",
+            "com.czbank.mbank"
     ));
 
     private static final Pattern AMOUNT_PATTERN = Pattern.compile(
@@ -43,6 +44,9 @@ final class PaymentParser {
 
         String raw = rawText(sbn);
         if (raw.length() == 0) {
+            return null;
+        }
+        if (isPromotionalOrQuotaNotice(raw) && !isGoldTradeNotice(raw) && !isTransitCardNotification(raw)) {
             return null;
         }
         boolean watchedPackage = WATCHED_PACKAGES.contains(packageName);
@@ -103,6 +107,9 @@ final class PaymentParser {
         if (raw.length() == 0) {
             return null;
         }
+        if (isPromotionalOrQuotaNotice(raw) && !isGoldTradeNotice(raw) && !isTransitCardNotification(raw)) {
+            return null;
+        }
         String type = transitCardPackage ? detectTransitType(raw) : ((isBankPackage(packageName) || bankMovementPackage) ? detectBankType(raw) : detectType(raw));
         if (type == null && (isBankPackage(packageName) || bankMovementPackage) && looksLikeBankMovement(raw)) {
             type = "expense";
@@ -154,6 +161,10 @@ final class PaymentParser {
     }
 
     private static String detectType(String raw) {
+        String goldType = detectGoldTradeType(raw);
+        if (goldType != null) {
+            return goldType;
+        }
         if (containsAny(raw, "到账", "入账", "收到转账", "转账已收款", "已收款", "转入", "退款", "收入", "收款到账", "退款到账", "退回零钱", "红包已到账")) {
             return "income";
         }
@@ -164,6 +175,10 @@ final class PaymentParser {
     }
 
     private static String detectBankType(String raw) {
+        String goldType = detectGoldTradeType(raw);
+        if (goldType != null) {
+            return goldType;
+        }
         if (containsAny(raw,
                 "入账", "到账", "收款", "收入", "转入", "收到", "贷记", "来账", "存入", "退款", "充值")) {
             return "income";
@@ -191,7 +206,8 @@ final class PaymentParser {
         return "com.chinamworld.main".equals(packageName)
                 || "com.chinamworld.bocmbci".equals(packageName)
                 || "com.bankcomm.Bankcomm".equals(packageName)
-                || "cmb.pb".equals(packageName);
+                || "cmb.pb".equals(packageName)
+                || "com.czbank.mbank".equals(packageName);
     }
 
     private static boolean isWechatPackage(String packageName) {
@@ -226,8 +242,48 @@ final class PaymentParser {
     }
 
     private static boolean looksLikeBankMovement(String raw) {
-        return containsAny(raw, "动账提醒", "动账", "账户变动", "交易提醒", "借记卡", "银行卡",
+        if (isPromotionalOrQuotaNotice(raw) && !isGoldTradeNotice(raw) && !isTransitCardNotification(raw)) {
+            return false;
+        }
+        return isGoldTradeNotice(raw) || containsAny(raw, "动账提醒", "动账", "账户变动", "交易提醒", "借记卡", "银行卡",
                 "扣款", "入账", "到账", "支出", "收入", "交易金额", "消费金额", "快捷支付");
+    }
+
+    private static String detectGoldTradeType(String raw) {
+        if (!isGoldTradeNotice(raw)) {
+            return null;
+        }
+        if (containsAny(raw, "买金", "买入", "购金", "购买黄金")) {
+            return "expense";
+        }
+        if (containsAny(raw, "卖金", "卖出", "赎回", "卖出黄金")) {
+            return "income";
+        }
+        return null;
+    }
+
+    private static boolean isGoldTradeNotice(String raw) {
+        return raw != null
+                && containsAny(raw, "黄金", "买金", "卖金")
+                && containsAny(raw, "成功", "确认", "成交", "买入", "卖出", "赎回");
+    }
+
+    private static boolean isPromotionalOrQuotaNotice(String raw) {
+        if (raw == null || raw.length() == 0) {
+            return false;
+        }
+        if (containsAny(raw, "验证码", "登录", "密码")) {
+            return true;
+        }
+        if (containsAny(raw, "额度", "预估额度", "授信", "借款额度", "贷款额度", "可借", "可申请")
+                && containsAny(raw, "领取", "查收", "查看", "避免失效", "失效", "获", "最高")) {
+            return true;
+        }
+        if (containsAny(raw, "优惠", "特惠", "权益", "活动", "话费券", "流量", "获赠", "赠送", "礼包", "红包雨", "抽奖")
+                && containsAny(raw, "领取", "点击", "链接", "http", "回复", "退订", "用券", "可享", "参与", "规则", "到期")) {
+            return true;
+        }
+        return containsAny(raw, "充值30元到账35元", "充30元到账35元", "充值可享", "充值优惠", "用券充值");
     }
 
     private static Long findPreferredAmount(String raw) {
@@ -342,13 +398,21 @@ final class PaymentParser {
                 return "交通银行";
             case "cmb.pb":
                 return "招商银行";
+            case "com.czbank.mbank":
+                return "浙商银行";
             default:
+                if (isGoldTradeNotice(raw)) {
+                    return "浙商银行";
+                }
                 return packageName;
         }
     }
 
     static boolean isWatchedOrBankLike(String packageName, String rawText) {
         String raw = rawText == null ? "" : rawText;
+        if (isPromotionalOrQuotaNotice(raw) && !isGoldTradeNotice(raw) && !isTransitCardNotification(raw)) {
+            return false;
+        }
         return WATCHED_PACKAGES.contains(packageName) || looksLikeBankMovement(raw) || isTransitCardNotification(raw);
     }
 

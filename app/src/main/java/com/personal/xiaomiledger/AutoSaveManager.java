@@ -68,7 +68,7 @@ final class AutoSaveManager {
 
     private static boolean isBankPayment(ParsedPayment payment) {
         String source = payment.sourceApp == null ? "" : payment.sourceApp;
-        return "中国银行".equals(source) || "交通银行".equals(source) || "招商银行".equals(source);
+        return "中国银行".equals(source) || "交通银行".equals(source) || "招商银行".equals(source) || "浙商银行".equals(source);
     }
 
     private static boolean isBankMovement(ParsedPayment payment) {
@@ -79,7 +79,8 @@ final class AutoSaveManager {
         }
         return raw.contains("动账") || raw.contains("账户") || raw.contains("入账")
                 || raw.contains("到账") || raw.contains("支出") || raw.contains("扣款")
-                || raw.contains("收入") || raw.contains("交易");
+                || raw.contains("收入") || raw.contains("交易") || raw.contains("买金")
+                || raw.contains("卖金") || raw.contains("黄金");
     }
 
     private static boolean isTransitCard(ParsedPayment payment) {
@@ -128,6 +129,7 @@ final class AutoSaveManager {
         if (text.contains("微信") || text.contains("财付通")) return "其它";
         if (text.contains("支付宝") || text.contains("淘宝") || text.contains("天猫")) return "日用品";
         if (text.contains("美团") || text.contains("饿了么") || text.contains("外卖")) return "三餐";
+        if (text.contains("买金") || text.contains("黄金")) return "其它";
         return ClassificationRules.inferCategory(rawText, "", "", type);
     }
 }
