@@ -131,7 +131,7 @@ final class Ui {
     }
 
     static void applyBackground(Activity activity) {
-        Drawable bg = activity.getDrawable(R.drawable.back_ground);
+        Drawable bg = PrefsManager.loadBackgroundDrawable(activity);
         if (bg != null) {
             activity.getWindow().setBackgroundDrawable(bg);
         }

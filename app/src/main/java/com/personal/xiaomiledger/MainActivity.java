@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
@@ -18,6 +19,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -241,6 +243,8 @@ public class MainActivity extends Activity {
         long totalAssets = store.totalByKind("asset");
         long totalLiabilities = Math.abs(store.totalByKind("liability"));
         long netAssets = totalAssets - totalLiabilities;
+        List<Account> accounts = store.accounts();
+        final boolean allHidden = PrefsManager.areAllBalancesHidden(this, accounts);
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -269,6 +273,21 @@ public class MainActivity extends Activity {
         brand.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(brand, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
+        // eye toggle
+        TextView eyeBtn = Ui.text(this, allHidden ? "👁‍" : "👁", 20, Color.WHITE, Typeface.NORMAL);
+        eyeBtn.setGravity(Gravity.CENTER);
+        eyeBtn.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 8), 0);
+        eyeBtn.setOnClickListener(v -> {
+            List<Account> freshAccounts = store.accounts();
+            if (PrefsManager.areAllBalancesHidden(MainActivity.this, freshAccounts)) {
+                PrefsManager.showAllBalances(MainActivity.this);
+            } else {
+                PrefsManager.hideAllBalances(MainActivity.this, freshAccounts);
+            }
+            refresh();
+        });
+        header.addView(eyeBtn);
+
         TextView adjustBtn = Ui.text(this, "平账", 13, Color.WHITE, Typeface.BOLD);
         adjustBtn.setGravity(Gravity.CENTER);
         adjustBtn.setBackground(Ui.bg(this, Color.argb(80, 255, 255, 255), 999));
@@ -287,18 +306,19 @@ public class MainActivity extends Activity {
         netLabel.setGravity(Gravity.CENTER);
         body.addView(netLabel);
 
-        TextView netValue = Ui.text(this, TransactionStore.formatMoneySigned(netAssets), 38, Ui.INK, Typeface.BOLD);
+        String netText = allHidden ? "****" : TransactionStore.formatMoneySigned(netAssets);
+        TextView netValue = Ui.text(this, netText, 38, Ui.INK, Typeface.BOLD);
         netValue.setGravity(Gravity.CENTER);
         body.addView(netValue);
         body.addView(Ui.spacer(this, 16));
 
         LinearLayout row = Ui.row(this);
         row.setGravity(Gravity.CENTER);
-        row.addView(assetMetric("总资产", TransactionStore.formatMoneySigned(totalAssets), Ui.SUCCESS));
+        row.addView(assetMetric("总资产", allHidden ? "****" : TransactionStore.formatMoneySigned(totalAssets), Ui.SUCCESS));
         View divider = new View(this);
         divider.setBackgroundColor(Ui.LINE);
         row.addView(divider, new LinearLayout.LayoutParams(Ui.dp(this, 1), Ui.dp(this, 32)));
-        row.addView(assetMetric("总负债", totalLiabilities == 0 ? "无" : TransactionStore.formatMoneySigned(totalLiabilities), Ui.WARNING));
+        row.addView(assetMetric("总负债", allHidden ? "****" : (totalLiabilities == 0 ? "无" : TransactionStore.formatMoneySigned(totalLiabilities)), Ui.WARNING));
         body.addView(row);
 
         content.addView(card);
@@ -390,14 +410,31 @@ public class MainActivity extends Activity {
         remove.setGravity(Gravity.CENTER);
         remove.setOnClickListener(v -> startActivity(new Intent(this, RemoveAccountActivity.class)));
         header.addView(remove, new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40)));
-        TextView total = Ui.text(this, TransactionStore.formatMoneySigned(store.totalByKind("asset")) + "  ", 18, Ui.MUTED, Typeface.NORMAL);
+
+        List<Account> accounts = store.accounts();
+        final boolean allHidden = PrefsManager.areAllBalancesHidden(this, accounts);
+        TextView eyeBtn = Ui.text(this, allHidden ? "👁‍" : "👁", 20, allHidden ? Ui.MUTED : Ui.INK, Typeface.NORMAL);
+        eyeBtn.setGravity(Gravity.CENTER);
+        eyeBtn.setPadding(Ui.dp(this, 6), 0, Ui.dp(this, 8), 0);
+        eyeBtn.setOnClickListener(v -> {
+            List<Account> fresh = store.accounts();
+            if (PrefsManager.areAllBalancesHidden(MainActivity.this, fresh)) {
+                PrefsManager.showAllBalances(MainActivity.this);
+            } else {
+                PrefsManager.hideAllBalances(MainActivity.this, fresh);
+            }
+            refresh();
+        });
+        header.addView(eyeBtn);
+
+        String totalText = allHidden ? "****" : TransactionStore.formatMoneySigned(store.totalByKind("asset"));
+        TextView total = Ui.text(this, totalText + "  ", 18, allHidden ? Ui.MUTED : Ui.INK, Typeface.NORMAL);
         total.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         header.addView(total);
 
         card.addView(header);
         card.addView(Ui.line(this));
 
-        List<Account> accounts = store.accounts();
         for (int i = 0; i < accounts.size(); i++) {
             card.addView(accountRow(accounts.get(i)));
             if (i < accounts.size() - 1) card.addView(Ui.line(this));
@@ -420,8 +457,21 @@ public class MainActivity extends Activity {
         nameLp.setMargins(Ui.dp(this, 14), 0, 0, 0);
         row.addView(name, nameLp);
 
-        TextView balance = Ui.text(this, TransactionStore.formatMoneySigned(account.balanceCents), 18, Ui.INK, Typeface.NORMAL);
+        boolean hidden = PrefsManager.isAccountBalanceHidden(this, account.name);
+        String balanceText = hidden ? "****" : TransactionStore.formatMoneySigned(account.balanceCents);
+        TextView balance = Ui.text(this, balanceText, 18, hidden ? Ui.MUTED : Ui.INK, Typeface.NORMAL);
         row.addView(balance);
+
+        // per-account eye
+        TextView eye = Ui.text(this, hidden ? "👁‍" : "👁", 16, hidden ? Ui.MUTED : Ui.INK, Typeface.NORMAL);
+        eye.setGravity(Gravity.CENTER);
+        eye.setPadding(Ui.dp(this, 6), 0, 0, 0);
+        eye.setClickable(true);
+        eye.setOnClickListener(v -> {
+            PrefsManager.toggleAccountBalanceHidden(MainActivity.this, account.name);
+            refresh();
+        });
+        row.addView(eye);
         return row;
     }
 
@@ -525,14 +575,30 @@ public class MainActivity extends Activity {
         drawerScroll.addView(drawer, new ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // ── header ──
-        TextView avatar = Ui.text(this, "夢", 30, Color.WHITE, Typeface.BOLD);
-        avatar.setGravity(Gravity.CENTER);
-        avatar.setBackground(Ui.bg(this, Ui.ACCENT_GOLD, 999));
-        drawer.addView(avatar, new LinearLayout.LayoutParams(Ui.dp(this, 72), Ui.dp(this, 72)));
+        Drawable avatarDrawable = PrefsManager.loadAvatarDrawable(this, 72);
+        if (avatarDrawable != null) {
+            ImageView avatar = new ImageView(this);
+            avatar.setImageDrawable(avatarDrawable);
+            avatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            avatar.setClipToOutline(true);
+            avatar.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                @Override
+                public void getOutline(View v, android.graphics.Outline outline) {
+                    outline.setOval(0, 0, v.getWidth(), v.getHeight());
+                }
+            });
+            int avatarSize = Ui.dp(this, 72);
+            drawer.addView(avatar, new LinearLayout.LayoutParams(avatarSize, avatarSize));
+        } else {
+            TextView avatar = Ui.text(this, "夢", 30, Color.WHITE, Typeface.BOLD);
+            avatar.setGravity(Gravity.CENTER);
+            avatar.setBackground(Ui.bg(this, Ui.ACCENT_GOLD, 999));
+            drawer.addView(avatar, new LinearLayout.LayoutParams(Ui.dp(this, 72), Ui.dp(this, 72)));
+        }
         drawer.addView(Ui.spacer(this, 16));
-        drawer.addView(Ui.text(this, "白日夢", 26, Ui.INK, Typeface.BOLD));
+        drawer.addView(Ui.text(this, PrefsManager.getDisplayName(this), 26, Ui.INK, Typeface.BOLD));
         drawer.addView(Ui.spacer(this, 4));
-        drawer.addView(Ui.text(this, "本地私用记账 · 油屋风格", 14, Ui.MUTED, Typeface.NORMAL));
+        drawer.addView(Ui.text(this, PrefsManager.getSignature(this), 14, Ui.MUTED, Typeface.NORMAL));
         drawer.addView(Ui.spacer(this, 6));
         drawer.addView(Ui.line(this));
         drawer.addView(Ui.spacer(this, 20));

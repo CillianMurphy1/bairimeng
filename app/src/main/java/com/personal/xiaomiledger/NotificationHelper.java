@@ -10,7 +10,6 @@ import android.os.Build;
 
 final class NotificationHelper {
     private static final String CHANNEL_ID = "anjin_ledger_reminder_v1";
-    private static final String CHANNEL_NAME = "安乃近提醒";
 
     private NotificationHelper() {
     }
@@ -36,7 +35,7 @@ final class NotificationHelper {
                 ? PaymentParser.formatMoney(payment.amountCents) + " 元"
                 : "金额待填写";
         builder.setSmallIcon(R.drawable.ic_wallet_24)
-                .setContentTitle(CHANNEL_NAME)
+                .setContentTitle(PrefsManager.getNotifyName(context))
                 .setContentText("发现一笔" + verb + "，待确认 · " + payment.sourceApp + " · " + amountText)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
@@ -65,7 +64,7 @@ final class NotificationHelper {
                 : new Notification.Builder(context);
         String verb = "income".equals(transaction.type) ? "收入" : "支出";
         builder.setSmallIcon(R.drawable.ic_wallet_24)
-                .setContentTitle(CHANNEL_NAME)
+                .setContentTitle(PrefsManager.getNotifyName(context))
                 .setContentText("已自动记账：" + verb + " " + PaymentParser.formatMoney(transaction.amountCents)
                         + " 元 · " + transaction.accountName + " · " + transaction.category)
                 .setContentIntent(pendingIntent)
@@ -81,9 +80,10 @@ final class NotificationHelper {
             return null;
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            String channelName = PrefsManager.getNotifyName(context);
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    CHANNEL_NAME,
+                    channelName,
                     NotificationManager.IMPORTANCE_HIGH);
             channel.setDescription("白日夢自动记账提醒");
             manager.createNotificationChannel(channel);
