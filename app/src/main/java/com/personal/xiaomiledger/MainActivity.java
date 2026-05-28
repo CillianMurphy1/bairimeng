@@ -30,14 +30,21 @@ import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
-    private LinearLayout content;
+    private LinearLayout content1, content2;
     private TransactionStore store;
     private Calendar selectedMonth = Calendar.getInstance();
     private TextView monthText;
+    private LinearLayout pageIndicator;
+    private int currentPage = 0;
+    private View page1View, page2View;
     private float drawerSwipeStartX;
     private float drawerSwipeStartY;
     private boolean drawerSwipeWatching;
     private boolean drawerSwipeOpened;
+    private float pageSwipeStartX;
+    private float pageSwipeStartRawY;
+    private boolean pageSwipeWatching;
+    private android.animation.ValueAnimator pageAnimator;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +69,7 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
         handleDrawerSwipe(event);
+        handlePageSwipe(event);
         return super.dispatchTouchEvent(event);
     }
 
@@ -91,6 +99,86 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void handlePageSwipe(MotionEvent event) {
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN: {
+                float x = event.getX();
+                if (x > Ui.dp(this, 34)) {
+                    pageSwipeStartX = x;
+                    pageSwipeStartRawY = event.getRawY();
+                    pageSwipeWatching = true;
+                } else {
+                    pageSwipeWatching = false;
+                }
+                break;
+            }
+            case MotionEvent.ACTION_MOVE: {
+                if (!pageSwipeWatching || pageAnimator != null) break;
+                float dx = event.getX() - pageSwipeStartX;
+                float dy = Math.abs(event.getRawY() - pageSwipeStartRawY);
+                if (Math.abs(dx) > Ui.dp(this, 56) && Math.abs(dx) > dy * 0.6f) {
+                    pageSwipeWatching = false;
+                    if (dx < 0 && currentPage == 0) {
+                        goToPage(1);
+                    } else if (dx > 0 && currentPage == 1) {
+                        goToPage(0);
+                    }
+                }
+                break;
+            }
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                pageSwipeWatching = false;
+                break;
+        }
+    }
+
+    private void goToPage(int target) {
+        if (pageAnimator != null || target == currentPage) return;
+        final int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        final View v1 = page1View;
+        final View v2 = page2View;
+        if (v1 == null || v2 == null) return;
+
+        float from1 = v1.getTranslationX();
+        float from2 = v2.getTranslationX();
+        float to1 = target == 1 ? -screenWidth : 0;
+        float to2 = target == 1 ? 0 : screenWidth;
+
+        pageAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        pageAnimator.setDuration(280);
+        pageAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        pageAnimator.addUpdateListener(anim -> {
+            float frac = (float) anim.getAnimatedValue();
+            v1.setTranslationX(from1 + (to1 - from1) * frac);
+            v2.setTranslationX(from2 + (to2 - from2) * frac);
+        });
+        pageAnimator.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(android.animation.Animator animation) {
+                pageAnimator = null;
+                currentPage = target;
+                updatePageIndicator();
+            }
+        });
+        pageAnimator.start();
+    }
+
+    private void updatePageIndicator() {
+        if (pageIndicator == null) return;
+        pageIndicator.removeAllViews();
+        for (int i = 0; i < 2; i++) {
+            View dot = new View(this);
+            int size = Ui.dp(this, 8);
+            int color = i == currentPage ? Ui.ACCENT : Ui.LINE;
+            dot.setBackground(Ui.bg(this, color, 999));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+            lp.setMargins(Ui.dp(this, 5), 0, Ui.dp(this, 5), 0);
+            dot.setLayoutParams(lp);
+            pageIndicator.addView(dot);
+        }
+    }
+
     private void buildUi() {
         FrameLayout screen = new FrameLayout(this);
         screen.setBackgroundColor(Ui.PAPER);
@@ -101,14 +189,41 @@ public class MainActivity extends Activity {
 
         page.addView(topBar());
 
-        ScrollView scroll = new ScrollView(this);
-        scroll.setClipToPadding(false);
-        scroll.setPadding(0, 0, 0, Ui.dp(this, 12));
-        content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(Ui.dp(this, 14), Ui.dp(this, 8), Ui.dp(this, 14), Ui.dp(this, 96));
-        scroll.addView(content);
-        page.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        // ── two-page container ──
+        final int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        FrameLayout pageContainer = new FrameLayout(this);
+        pageContainer.setClipChildren(true);
+
+        ScrollView scroll1 = new ScrollView(this);
+        scroll1.setClipToPadding(false);
+        scroll1.setPadding(0, 0, 0, Ui.dp(this, 12));
+        content1 = new LinearLayout(this);
+        content1.setOrientation(LinearLayout.VERTICAL);
+        content1.setPadding(Ui.dp(this, 14), Ui.dp(this, 8), Ui.dp(this, 14), Ui.dp(this, 96));
+        scroll1.addView(content1);
+        page1View = scroll1;
+        pageContainer.addView(scroll1, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        ScrollView scroll2 = new ScrollView(this);
+        scroll2.setClipToPadding(false);
+        scroll2.setPadding(0, 0, 0, Ui.dp(this, 12));
+        scroll2.setTranslationX(screenWidth);
+        content2 = new LinearLayout(this);
+        content2.setOrientation(LinearLayout.VERTICAL);
+        content2.setPadding(Ui.dp(this, 14), Ui.dp(this, 8), Ui.dp(this, 14), Ui.dp(this, 96));
+        scroll2.addView(content2);
+        page2View = scroll2;
+        pageContainer.addView(scroll2, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        page.addView(pageContainer, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+
+        // ── page indicator ──
+        pageIndicator = new LinearLayout(this);
+        pageIndicator.setOrientation(LinearLayout.HORIZONTAL);
+        pageIndicator.setGravity(Gravity.CENTER);
+        pageIndicator.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 2));
+        updatePageIndicator();
+        page.addView(pageIndicator);
 
         page.addView(bottomNav());
 
@@ -228,11 +343,14 @@ public class MainActivity extends Activity {
     }
 
     private void refresh() {
-        content.removeAllViews();
+        // ── page 1: assets, overview, quick actions, accounts ──
+        content1.removeAllViews();
         addAssetCard();
         addMonthOverviewCard();
         addQuickActionsCard();
         addAccountsCard();
+        // ── page 2: bills, auto record ──
+        content2.removeAllViews();
         addBillsCard();
         addAutoRecordCard();
     }
@@ -323,7 +441,7 @@ public class MainActivity extends Activity {
         row.addView(assetMetric("总负债", allHidden ? "****" : (totalLiabilities == 0 ? "无" : TransactionStore.formatMoneySigned(totalLiabilities)), Ui.WARNING));
         body.addView(row);
 
-        content.addView(card);
+        content1.addView(card);
     }
 
     private TextView assetMetric(String label, String value, int valueColor) {
@@ -354,7 +472,7 @@ public class MainActivity extends Activity {
         row.addView(monthMetric("支出", PaymentParser.formatMoney(expense), Ui.WARNING, Ui.EXPENSE_BG));
         row.addView(monthMetric("结余", TransactionStore.formatMoneySigned(income - expense), Ui.INK, Ui.CHIP_BG));
         card.addView(row);
-        content.addView(card);
+        content1.addView(card);
     }
 
     private TextView monthMetric(String label, String value, int color, int bg) {
@@ -378,7 +496,7 @@ public class MainActivity extends Activity {
         row.addView(quickAction("转账", Ui.TRANSFER, v -> startActivity(addBillIntent("transfer"))));
         row.addView(quickAction("预算", Ui.INK, v -> startActivity(new Intent(this, BudgetActivity.class))));
         card.addView(row);
-        content.addView(card);
+        content1.addView(card);
     }
 
     private Intent addBillIntent(String mode) {
@@ -443,7 +561,7 @@ public class MainActivity extends Activity {
             card.addView(accountRow(accounts.get(i)));
             if (i < accounts.size() - 1) card.addView(Ui.line(this));
         }
-        content.addView(card);
+        content1.addView(card);
     }
 
     private LinearLayout accountRow(Account account) {
@@ -504,7 +622,7 @@ public class MainActivity extends Activity {
                 card.addView(billRow(transactions.get(i)));
             }
         }
-        content.addView(card);
+        content2.addView(card);
     }
 
     private LinearLayout billRow(Transaction tx) {
@@ -557,7 +675,7 @@ public class MainActivity extends Activity {
         card.addView(Ui.spacer(this, 4));
         card.addView(Ui.text(this, "微信、支付宝支付通知自动识别记录", 13, Ui.MUTED, Typeface.NORMAL));
         card.setOnClickListener(v -> startActivity(new Intent(this, AutoLogActivity.class)));
-        content.addView(card);
+        content2.addView(card);
     }
 
     // ── drawer ──
@@ -635,10 +753,20 @@ public class MainActivity extends Activity {
         drawer.addView(drawerItem("⚙️", "设置·关于", v -> { dialog.dismiss(); startActivity(new Intent(this, SettingsActivity.class)); }));
 
         // shade
-        View shade = new View(this);
+        final View shade = new View(this);
         shade.setBackgroundColor(Color.argb(160, 0, 0, 0));
-        shade.setOnClickListener(v -> dialog.dismiss());
+        shade.setAlpha(0f);
+        View.OnClickListener dismissAction = v -> {
+            drawerScroll.animate().translationX(-drawerWidth).setDuration(220)
+                    .setInterpolator(new android.view.animation.AccelerateInterpolator())
+                    .withEndAction(dialog::dismiss).start();
+            shade.animate().alpha(0f).setDuration(220).start();
+        };
+        shade.setOnClickListener(dismissAction);
         root.addView(shade, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
+
+        // start drawer off-screen
+        drawerScroll.setTranslationX(-drawerWidth);
 
         dialog.setContentView(root);
         Window window = dialog.getWindow();
@@ -651,6 +779,11 @@ public class MainActivity extends Activity {
         if (shown != null) {
             shown.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         }
+
+        // slide drawer in
+        drawerScroll.animate().translationX(0f).setDuration(260)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+        shade.animate().alpha(1f).setDuration(260).start();
     }
 
     private TextView drawerSection(String title) {
