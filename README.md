@@ -4,7 +4,7 @@
 
 ## 当前版本
 
-- 版本标记：`v0.3.8`
+- 版本标记：`v0.3.9`
 - 安装包名：`com.personal.xiaomiledger.v2`
 - 手机显示名：`白日夢新版`
 - 旧版包名：`com.personal.xiaomiledger`，因 debug 签名不一致，当前保留旧版并并存安装新版。
@@ -90,6 +90,10 @@ $env:Path='D:\xiaomi_app\.tools\jdk17\bin;D:\xiaomi_app\.tools\android-sdk\platf
 - 资产平账页面：`app/src/main/java/com/personal/xiaomiledger/AdjustBalanceActivity.java`
 
 ## 开发日志
+
+### 2026-05-29
+
+- v0.3.9：编辑账单页新增删除确认弹窗，点击"删除账单"后弹出确认对话框，防止误删；删除后底部显示撤销条（"已删除" + "撤销"按钮），5 秒内可一键恢复账单和账户余额。
 
 ### 2026-05-28
 

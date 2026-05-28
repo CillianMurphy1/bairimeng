@@ -277,6 +277,37 @@ final class TransactionStore extends SQLiteOpenHelper {
         return null;
     }
 
+    Transaction delete(long id) {
+        Transaction tx = transactionById(id);
+        if (tx == null) return null;
+        SQLiteDatabase db = getWritableDatabase();
+        db.beginTransaction();
+        try {
+            applyTransactionToAccount(db, tx, -1);
+            db.delete("transactions", "id=?", new String[]{String.valueOf(id)});
+            db.setTransactionSuccessful();
+            return tx;
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    long reInsert(Transaction tx) {
+        normalizeTransaction(tx);
+        SQLiteDatabase db = getWritableDatabase();
+        db.beginTransaction();
+        try {
+            long newId = db.insertWithOnConflict("transactions", null, transactionValues(tx), SQLiteDatabase.CONFLICT_IGNORE);
+            if (newId != -1) {
+                applyTransactionToAccount(db, tx, 1);
+                db.setTransactionSuccessful();
+            }
+            return newId;
+        } finally {
+            db.endTransaction();
+        }
+    }
+
     void addAccount(String name, String accountType) {
         String cleanName = name == null ? "" : name.trim();
         if (cleanName.length() == 0 || "未确认账户".equals(cleanName)) {

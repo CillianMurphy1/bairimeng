@@ -1,13 +1,17 @@
 package com.personal.xiaomiledger;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.os.Handler;
 import android.text.InputType;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -40,6 +44,11 @@ public class EditTransactionActivity extends Activity {
     private EditText sourceInput;
     private TransactionStore store;
     private Transaction editingTransaction;
+    private Transaction deletedTransaction;
+    private LinearLayout undoBar;
+    private Button deleteButton;
+    private Handler undoHandler = new Handler();
+    private Runnable undoRunnable;
 
     static Intent intentForPayment(Context context, ParsedPayment payment) {
         Intent intent = new Intent(context, EditTransactionActivity.class);
@@ -148,6 +157,19 @@ public class EditTransactionActivity extends Activity {
                 Ui.dp(this, 50)));
 
         root.addView(Ui.spacer(this, 10));
+
+        // delete button — only when editing
+        deleteButton = new Button(this);
+        deleteButton.setText("删除账单");
+        deleteButton.setTextColor(Color.WHITE);
+        deleteButton.setBackground(Ui.bg(this, Ui.WARNING, 14));
+        deleteButton.setOnClickListener(v -> confirmDelete());
+        root.addView(deleteButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                Ui.dp(this, 48)));
+
+        root.addView(Ui.spacer(this, 10));
+
         Button cancelButton = new Button(this);
         cancelButton.setText("取消");
         cancelButton.setTextColor(Ui.INK);
@@ -156,6 +178,24 @@ public class EditTransactionActivity extends Activity {
         root.addView(cancelButton, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 Ui.dp(this, 48)));
+
+        // ── undo bar ──
+        undoBar = new LinearLayout(this);
+        undoBar.setOrientation(LinearLayout.HORIZONTAL);
+        undoBar.setGravity(Gravity.CENTER_VERTICAL);
+        undoBar.setBackground(Ui.bg(this, Color.rgb(50, 50, 50), 12));
+        undoBar.setPadding(Ui.dp(this, 16), Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10));
+        undoBar.setVisibility(View.GONE);
+        TextView undoText = Ui.text(this, "已删除", 15, Color.WHITE, Typeface.NORMAL);
+        undoBar.addView(undoText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView undoBtn = Ui.text(this, "撤销", 15, Ui.ACCENT_GOLD, Typeface.BOLD);
+        undoBtn.setGravity(Gravity.CENTER);
+        undoBtn.setPadding(Ui.dp(this, 14), Ui.dp(this, 6), Ui.dp(this, 14), Ui.dp(this, 6));
+        undoBtn.setOnClickListener(v -> undoDelete());
+        undoBar.addView(undoBtn);
+        root.addView(undoBar, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
 
         setContentView(scrollView);
     }
@@ -223,6 +263,7 @@ public class EditTransactionActivity extends Activity {
         }
         selectSpinner(accountSpinner, account);
         selectSpinner(categorySpinner, ClassificationRules.inferCategory(rawText, sourceApp, merchant, "income".equals(type) ? "income" : "expense"));
+        deleteButton.setVisibility(View.GONE);
     }
 
     private void fillFromTransaction(Transaction transaction) {
@@ -302,6 +343,46 @@ public class EditTransactionActivity extends Activity {
                     : new String[]{"三餐", "零食", "衣服", "交通", "旅行", "日用品", "医疗", "娱乐", "其它"};
         }
         return values.toArray(new String[0]);
+    }
+
+    private void confirmDelete() {
+        new AlertDialog.Builder(this)
+                .setTitle("确认删除")
+                .setMessage("删除后账户余额会恢复，可以撤销。")
+                .setPositiveButton("删除", (dialog, which) -> performDelete())
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void performDelete() {
+        if (editingTransaction == null) return;
+        deletedTransaction = store.delete(editingTransaction.id);
+        if (deletedTransaction == null) {
+            Toast.makeText(this, "删除失败", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        deleteButton.setVisibility(View.GONE);
+        undoBar.setVisibility(View.VISIBLE);
+        Toast.makeText(this, "已删除", Toast.LENGTH_SHORT).show();
+        if (undoRunnable != null) undoHandler.removeCallbacks(undoRunnable);
+        undoRunnable = () -> {
+            undoBar.setVisibility(View.GONE);
+            deleteButton.setVisibility(View.VISIBLE);
+        };
+        undoHandler.postDelayed(undoRunnable, 5000);
+    }
+
+    private void undoDelete() {
+        if (deletedTransaction == null) return;
+        long newId = store.reInsert(deletedTransaction);
+        if (newId != -1) {
+            editingTransaction = store.transactionById(newId);
+            deletedTransaction = null;
+            Toast.makeText(this, "已撤销", Toast.LENGTH_SHORT).show();
+        }
+        undoBar.setVisibility(View.GONE);
+        deleteButton.setVisibility(View.VISIBLE);
+        if (undoRunnable != null) undoHandler.removeCallbacks(undoRunnable);
     }
 
     private Long parseAmount(String value) {
