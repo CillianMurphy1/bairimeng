@@ -9,6 +9,7 @@ final class RecentPaymentGate {
     private static final String KEYS = "keys";
     private static final String BANK_EXPENSES = "bank_expenses";
     private static final String BANK_INCOMES = "bank_incomes";
+    private static final String LAST_BANK_SEEN = "last_bank_seen";
     private static final int MAX_KEYS = 120;
     private static final int MAX_BANK_EVENTS = 40;
     private static final long CROSS_SOURCE_WINDOW_MS = 2000L;
@@ -172,6 +173,17 @@ final class RecentPaymentGate {
         return payment != null
                 && "income".equals(payment.type)
                 && PaymentContextStore.isBankSource(payment);
+    }
+
+    static void rememberBankSeen(Context context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().putLong(LAST_BANK_SEEN, System.currentTimeMillis()).apply();
+    }
+
+    static boolean wasBankRecentlySeen(Context context) {
+        long lastSeen = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getLong(LAST_BANK_SEEN, 0);
+        return lastSeen > 0 && System.currentTimeMillis() - lastSeen < CROSS_SOURCE_WINDOW_MS * 3;
     }
 
     private static boolean isPaymentAppSource(ParsedPayment payment) {

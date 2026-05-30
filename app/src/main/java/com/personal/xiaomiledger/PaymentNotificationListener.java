@@ -97,6 +97,11 @@ public class PaymentNotificationListener extends NotificationListenerService {
         remember(payment.notificationKey);
         RecentPaymentGate.rememberBankExpense(this, payment);
         RecentPaymentGate.rememberBankIncome(this, payment);
+        // 标记银行来源通知已被处理（无论有无金额），
+        // 供延迟的微信银行卡支付通知判断是否需要跳过
+        if (PaymentContextStore.isBankSource(payment)) {
+            RecentPaymentGate.rememberBankSeen(this);
+        }
         String category = ClassificationRules.inferCategory(payment.rawText, payment.sourceApp, payment.merchant, payment.type);
         String account = store.inferAccount(payment.rawText, payment.sourceApp);
         store.logAutoRecord("recognized", payment.sourceApp, payment.rawText,
@@ -133,6 +138,12 @@ public class PaymentNotificationListener extends NotificationListenerService {
                 delayedWechatKeys.remove(key);
             }
             TransactionStore delayedStore = new TransactionStore(this);
+            // 银行通知已被处理（含无金额只弹出确认页的情况），跳过微信通知避免二次弹窗
+            if (RecentPaymentGate.wasBankRecentlySeen(this)) {
+                delayedStore.logAutoRecord("duplicate", payment.sourceApp, payment.rawText,
+                        "微信银行卡支付通知：银行方已处理，跳过避免重复", payment.amountCents);
+                return;
+            }
             continuePayment(payment, delayedStore, false);
         }, RecentPaymentGate.crossSourceWindowMs());
     }
