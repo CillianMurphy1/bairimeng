@@ -4,7 +4,7 @@
 
 ## 当前版本
 
-- 版本标记：`v0.3.9`
+- 版本标记：`v0.3.10`
 - 安装包名：`com.personal.xiaomiledger.v2`
 - 手机显示名：`白日夢新版`
 - 旧版包名：`com.personal.xiaomiledger`，因 debug 签名不一致，当前保留旧版并并存安装新版。
@@ -90,6 +90,10 @@ $env:Path='D:\xiaomi_app\.tools\jdk17\bin;D:\xiaomi_app\.tools\android-sdk\platf
 - 资产平账页面：`app/src/main/java/com/personal/xiaomiledger/AdjustBalanceActivity.java`
 
 ## 开发日志
+
+### 2026-05-30
+
+- v0.3.10：修复通知监听服务被系统重启后补扫同一条通知导致重复弹出确认页的问题；退款到账等非自动保存通知不再因服务重启而重复弹出两次。
 
 ### 2026-05-29
 

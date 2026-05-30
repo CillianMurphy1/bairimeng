@@ -58,7 +58,7 @@ public class PaymentNotificationListener extends NotificationListenerService {
             store = new TransactionStore(this);
         }
         if (store.hasNotificationKey(payment.notificationKey)
-                || (!fromActiveScan && isRecentlySeen(payment.notificationKey))) {
+                || isRecentlySeen(payment.notificationKey)) {
             store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText, "重复通知，已忽略", payment.amountCents);
             return;
         }
@@ -81,7 +81,7 @@ public class PaymentNotificationListener extends NotificationListenerService {
 
     private void continuePayment(ParsedPayment payment, TransactionStore store, boolean fromActiveScan) {
         if (store.hasNotificationKey(payment.notificationKey)
-                || (!fromActiveScan && isRecentlySeen(payment.notificationKey))) {
+                || isRecentlySeen(payment.notificationKey)) {
             store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText, "重复通知，已忽略", payment.amountCents);
             return;
         }
@@ -90,7 +90,7 @@ public class PaymentNotificationListener extends NotificationListenerService {
                     "近期已有同金额银行支出，微信通知已忽略，避免重复记录", payment.amountCents);
             return;
         }
-        if (!fromActiveScan && RecentPaymentGate.shouldSkipAndRemember(this, payment)) {
+        if (RecentPaymentGate.shouldSkipAndRemember(this, payment)) {
             store.logAutoRecord("duplicate", payment.sourceApp, payment.rawText, "近期已由其他方式识别，已忽略", payment.amountCents);
             return;
         }
