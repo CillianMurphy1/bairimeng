@@ -62,11 +62,19 @@ final class NotificationHelper {
         Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 ? new Notification.Builder(context, CHANNEL_ID)
                 : new Notification.Builder(context);
-        String verb = "income".equals(transaction.type) ? "收入" : "支出";
+        String verb = "transfer".equals(transaction.type)
+                ? "转账"
+                : ("income".equals(transaction.type) ? "收入" : "支出");
+        String accountText = transaction.accountName;
+        if ("transfer".equals(transaction.type)
+                && transaction.targetAccountName != null
+                && transaction.targetAccountName.length() > 0) {
+            accountText = transaction.accountName + " -> " + transaction.targetAccountName;
+        }
         builder.setSmallIcon(R.drawable.ic_wallet_24)
                 .setContentTitle(PrefsManager.getNotifyName(context))
                 .setContentText("已自动记账：" + verb + " " + PaymentParser.formatMoney(transaction.amountCents)
-                        + " 元 · " + transaction.accountName + " · " + transaction.category)
+                        + " 元 · " + accountText + " · " + transaction.category)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .setCategory(Notification.CATEGORY_STATUS)

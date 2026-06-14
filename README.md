@@ -4,7 +4,7 @@
 
 ## 当前版本
 
-- 版本标记：`v0.3.10`
+- 版本标记：`v0.3.12`
 - 安装包名：`com.personal.xiaomiledger.v2`
 - 手机显示名：`白日夢新版`
 - 旧版包名：`com.personal.xiaomiledger`，因 debug 签名不一致，当前保留旧版并并存安装新版。
@@ -90,6 +90,10 @@ $env:Path='D:\xiaomi_app\.tools\jdk17\bin;D:\xiaomi_app\.tools\android-sdk\platf
 - 资产平账页面：`app/src/main/java/com/personal/xiaomiledger/AdjustBalanceActivity.java`
 
 ## 开发日志
+
+### 2026-06-14
+
+- v0.3.12：修复中国移动卡券/充值券到账提醒被误识别为收入的问题；过滤“你关注的”他人京东金融黄金交易动态，避免把关注对象的动账消息记入自己的收支；优化银行转账收入与近期同金额银行支出的自动合并提醒。
 
 ### 2026-05-30
 

@@ -400,6 +400,53 @@ final class TransactionStore extends SQLiteOpenHelper {
         return insert(transaction);
     }
 
+    Transaction completeRecentBankTransferTo(String toAccount, ParsedPayment incomingPayment) {
+        if (incomingPayment == null
+                || toAccount == null
+                || toAccount.length() == 0
+                || "未确认账户".equals(toAccount)
+                || incomingPayment.amountCents <= 0) {
+            return null;
+        }
+        long occurredAt = incomingPayment.occurredAt > 0 ? incomingPayment.occurredAt : System.currentTimeMillis();
+        long windowStart = occurredAt - 300000L;
+        long windowEnd = occurredAt + 300000L;
+        Transaction candidate = null;
+        try (Cursor cursor = getReadableDatabase().query(
+                "transactions", null,
+                "type='expense' AND amount_cents=? AND account_name<>? AND occurred_at>=? AND occurred_at<=?",
+                new String[]{
+                        String.valueOf(incomingPayment.amountCents),
+                        toAccount,
+                        String.valueOf(windowStart),
+                        String.valueOf(windowEnd)
+                },
+                null, null, "occurred_at DESC", "8")) {
+            while (cursor.moveToNext()) {
+                Transaction tx = fromCursor(cursor);
+                if (!isKnownBankName(tx.accountName) && !isKnownBankName(tx.sourceApp)) {
+                    continue;
+                }
+                String text = ((tx.rawText == null ? "" : tx.rawText) + " " + (tx.note == null ? "" : tx.note));
+                if (looksLikeInternalTransferOut(text, toAccount)) {
+                    candidate = tx;
+                    break;
+                }
+            }
+        }
+        if (candidate == null) {
+            return null;
+        }
+        candidate.type = "transfer";
+        candidate.targetAccountName = toAccount;
+        candidate.category = "转账";
+        candidate.merchant = toAccount;
+        candidate.note = appendText(candidate.note, incomingPayment.rawText);
+        candidate.rawText = appendText(candidate.rawText, incomingPayment.rawText);
+        candidate.updatedAt = System.currentTimeMillis();
+        return update(candidate) ? candidate : null;
+    }
+
     boolean hasNotificationKey(String notificationKey) {
         if (notificationKey == null || notificationKey.length() == 0) {
             return false;
@@ -726,6 +773,48 @@ final class TransactionStore extends SQLiteOpenHelper {
             }
         }
         return 0;
+    }
+
+    private static boolean looksLikeInternalTransferOut(String text, String toAccount) {
+        String raw = text == null ? "" : text;
+        if (containsAny(raw, "微信", "财付通", "支付宝", "淘宝", "天猫", "美团", "饿了么", "外卖", "商户")) {
+            return false;
+        }
+        return containsAny(raw, "跨行", "转账", "代扣", "网络支付", toAccount)
+                && containsAny(raw, "银行", "银行卡", "支出", "扣款", "转出", "付款", "支付");
+    }
+
+    private static boolean isKnownBankName(String name) {
+        String value = name == null ? "" : name;
+        return value.endsWith("银行")
+                || "中国银行".equals(value)
+                || "交通银行".equals(value)
+                || "招商银行".equals(value)
+                || "浙商银行".equals(value);
+    }
+
+    private static String appendText(String current, String addition) {
+        String left = current == null ? "" : current.trim();
+        String right = addition == null ? "" : addition.trim();
+        if (right.length() == 0 || left.contains(right)) {
+            return left;
+        }
+        if (left.length() == 0) {
+            return right;
+        }
+        return left + " " + right;
+    }
+
+    private static boolean containsAny(String text, String... values) {
+        if (text == null) {
+            return false;
+        }
+        for (String value : values) {
+            if (value != null && value.length() > 0 && text.contains(value)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Transaction fromCursor(Cursor cursor) {

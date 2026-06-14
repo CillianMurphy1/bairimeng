@@ -28,10 +28,12 @@ final class PaymentParser {
     private static final Pattern LABELED_AMOUNT_PATTERN = Pattern.compile(
             "(?:实付|实付款|支付金额|付款金额|订单金额|合计|共计|扣款金额|消费金额|交易金额|支出金额|入账金额|到账金额|退款金额)[:：\\s]*(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.([0-9]{1,2}))?(?![0-9,.])\\s*元?");
     private static final Pattern BANK_AMOUNT_PATTERN = Pattern.compile(
-            "(?:动账|交易|消费|支出|扣款|付款|支付|入账|到账|转入)[^0-9￥¥]{0,24}(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.([0-9]{1,2}))?(?![0-9,.])\\s*元?");
+            "(?:动账|交易|消费|支出|扣款|付款|支付|入账|到账|转入|增加)[^0-9￥¥]{0,24}(?:人民币|RMB|CNY|￥|¥)?\\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.([0-9]{1,2}))?(?![0-9,.])\\s*元?");
     private static final Pattern MERCHANT_PAY_TO = Pattern.compile("(?:支付给|付款给|转账给|向)([^，,。；;\\n]{2,24})");
     private static final Pattern MERCHANT_LABEL = Pattern.compile("(?:商户|收款方|对方|店铺)[:：\\s]+([^，,。；;\\n]{2,24})");
     private static final Pattern TAOBAO_SUCCESS_TITLE = Pattern.compile("支付成功\\s+(.{2,50}?)(?:\\s+查看订单|\\s+本单奖励|\\s+该宝贝|$)");
+    private static final Pattern OBSERVED_THIRD_PARTY_FINANCE_PATTERN = Pattern.compile(
+            "(?:你|您)\\s*关注的\\s*@?[^，,。；;\\n]{0,60}(?:有\\s*(?:1|一)\\s*笔|黄金交易|买入|卖出|买金|卖金|支付|付款|收入|支出|到账)");
 
     private PaymentParser() {
     }
@@ -44,6 +46,9 @@ final class PaymentParser {
 
         String raw = rawText(sbn);
         if (raw.length() == 0) {
+            return null;
+        }
+        if (isObservedThirdPartyFinanceNotice(raw)) {
             return null;
         }
         if (isPromotionalOrQuotaNotice(raw) && !isGoldTradeNotice(raw) && !isTransitCardNotification(raw)) {
@@ -105,6 +110,9 @@ final class PaymentParser {
         }
         String raw = normalize(rawText);
         if (raw.length() == 0) {
+            return null;
+        }
+        if (isObservedThirdPartyFinanceNotice(raw)) {
             return null;
         }
         if (isPromotionalOrQuotaNotice(raw) && !isGoldTradeNotice(raw) && !isTransitCardNotification(raw)) {
@@ -180,7 +188,7 @@ final class PaymentParser {
             return goldType;
         }
         if (containsAny(raw,
-                "入账", "到账", "收款", "收入", "转入", "收到", "贷记", "来账", "存入", "退款", "充值")) {
+                "入账", "到账", "收款", "收入", "转入", "收到", "贷记", "来账", "存入", "退款", "充值", "增加")) {
             return "income";
         }
         if (containsAny(raw,
@@ -242,11 +250,14 @@ final class PaymentParser {
     }
 
     private static boolean looksLikeBankMovement(String raw) {
+        if (isObservedThirdPartyFinanceNotice(raw)) {
+            return false;
+        }
         if (isPromotionalOrQuotaNotice(raw) && !isGoldTradeNotice(raw) && !isTransitCardNotification(raw)) {
             return false;
         }
         return isGoldTradeNotice(raw) || containsAny(raw, "动账提醒", "动账", "账户变动", "交易提醒", "借记卡", "银行卡",
-                "扣款", "入账", "到账", "支出", "收入", "交易金额", "消费金额", "快捷支付");
+                "扣款", "入账", "到账", "支出", "收入", "增加", "交易金额", "消费金额", "快捷支付");
     }
 
     private static String detectGoldTradeType(String raw) {
@@ -264,8 +275,18 @@ final class PaymentParser {
 
     private static boolean isGoldTradeNotice(String raw) {
         return raw != null
+                && !isObservedThirdPartyFinanceNotice(raw)
                 && containsAny(raw, "黄金", "买金", "卖金")
                 && containsAny(raw, "成功", "确认", "成交", "买入", "卖出", "赎回");
+    }
+
+    private static boolean isObservedThirdPartyFinanceNotice(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        return OBSERVED_THIRD_PARTY_FINANCE_PATTERN.matcher(raw).find()
+                || (containsAny(raw, "你关注的", "您关注的", "关注的@", "关注的人", "关注用户")
+                && containsAny(raw, "有1笔", "有一笔", "支付", "付款", "收入", "支出", "到账", "黄金", "黄金交易", "买入", "卖出", "买金", "卖金"));
     }
 
     private static boolean isPromotionalOrQuotaNotice(String raw) {
@@ -275,11 +296,18 @@ final class PaymentParser {
         if (containsAny(raw, "验证码", "登录", "密码")) {
             return true;
         }
+        if ((containsAny(raw, "中国移动", "10086")
+                && containsAny(raw, "卡券", "券到账", "充值券", "话费券")
+                && containsAny(raw, "到账提醒", "发放成功", "已发放", "查看使用", "本月有效", "中国移动APP"))
+                || (containsAny(raw, "卡券到账提醒", "充值券已发放", "充值券发放", "话费券到账")
+                && containsAny(raw, "查看使用", "本月有效", "发放成功", "已发放"))) {
+            return true;
+        }
         if (containsAny(raw, "额度", "预估额度", "授信", "借款额度", "贷款额度", "可借", "可申请")
                 && containsAny(raw, "领取", "查收", "查看", "避免失效", "失效", "获", "最高")) {
             return true;
         }
-        if (containsAny(raw, "优惠", "特惠", "权益", "活动", "话费券", "流量", "获赠", "赠送", "礼包", "红包雨", "抽奖")
+        if (containsAny(raw, "优惠", "特惠", "权益", "活动", "卡券", "充值券", "话费券", "流量", "获赠", "赠送", "礼包", "红包雨", "抽奖")
                 && containsAny(raw, "领取", "点击", "链接", "http", "回复", "退订", "用券", "可享", "参与", "规则", "到期")) {
             return true;
         }
@@ -410,6 +438,9 @@ final class PaymentParser {
 
     static boolean isWatchedOrBankLike(String packageName, String rawText) {
         String raw = rawText == null ? "" : rawText;
+        if (isObservedThirdPartyFinanceNotice(raw)) {
+            return false;
+        }
         if (isPromotionalOrQuotaNotice(raw) && !isGoldTradeNotice(raw) && !isTransitCardNotification(raw)) {
             return false;
         }

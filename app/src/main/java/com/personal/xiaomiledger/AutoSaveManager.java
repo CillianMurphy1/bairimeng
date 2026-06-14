@@ -40,6 +40,15 @@ final class AutoSaveManager {
             category = "income".equals(payment.type) ? "其它" : "交通";
         } else if (isBankPayment(payment) || isBankMovement(payment)) {
             category = bankCategory(payment.rawText, payment.type);
+            if (isBankTransferIncome(payment)) {
+                Transaction transfer = store.completeRecentBankTransferTo(account, payment);
+                if (transfer != null) {
+                    store.logAutoRecord("saved", payment.sourceApp, payment.rawText,
+                            "自动合并转账：" + transfer.accountName + " -> " + account, payment.amountCents);
+                    NotificationHelper.showAutoSaved(context, transfer);
+                    return true;
+                }
+            }
         } else if (!isExplicitWalletPayment(payment) && !isWechatIncomeReceipt(payment) && "其它".equals(category)) {
             return false;
         }
@@ -131,5 +140,13 @@ final class AutoSaveManager {
         if (text.contains("美团") || text.contains("饿了么") || text.contains("外卖")) return "三餐";
         if (text.contains("买金") || text.contains("黄金")) return "其它";
         return ClassificationRules.inferCategory(rawText, "", "", type);
+    }
+
+    private static boolean isBankTransferIncome(ParsedPayment payment) {
+        if (payment == null || !"income".equals(payment.type)) {
+            return false;
+        }
+        String raw = payment.rawText == null ? "" : payment.rawText;
+        return raw.contains("转账") || raw.contains("跨行") || raw.contains("增加");
     }
 }
