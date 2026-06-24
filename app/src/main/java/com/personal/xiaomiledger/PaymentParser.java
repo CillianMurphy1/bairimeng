@@ -34,6 +34,9 @@ final class PaymentParser {
     private static final Pattern TAOBAO_SUCCESS_TITLE = Pattern.compile("支付成功\\s+(.{2,50}?)(?:\\s+查看订单|\\s+本单奖励|\\s+该宝贝|$)");
     private static final Pattern OBSERVED_THIRD_PARTY_FINANCE_PATTERN = Pattern.compile(
             "(?:你|您)\\s*关注的\\s*@?[^，,。；;\\n]{0,60}(?:有\\s*(?:1|一)\\s*笔|黄金交易|买入|卖出|买金|卖金|支付|付款|收入|支出|到账)");
+    private static final Pattern OBSERVED_SOCIAL_FINANCE_PATTERN = Pattern.compile(
+            "(?:关注(?:的|的人|用户|好友)?|好友|达人|社区|动态|@)[^，,。；;\\n]{0,80}(?:黄金|黄金交易|买入|卖出|买金|卖金|购金|支付|付款|收入|支出|到账)"
+                    + "|(?:黄金|黄金交易|买入|卖出|买金|卖金|购金|支付|付款|收入|支出|到账)[^，,。；;\\n]{0,80}(?:关注|好友|达人|社区|动态|@)");
 
     private PaymentParser() {
     }
@@ -48,7 +51,7 @@ final class PaymentParser {
         if (raw.length() == 0) {
             return null;
         }
-        if (isObservedThirdPartyFinanceNotice(raw)) {
+        if (isObservedThirdPartyFinanceNotice(packageName, raw)) {
             return null;
         }
         if (isPromotionalOrQuotaNotice(raw) && !isGoldTradeNotice(raw) && !isTransitCardNotification(raw)) {
@@ -112,7 +115,7 @@ final class PaymentParser {
         if (raw.length() == 0) {
             return null;
         }
-        if (isObservedThirdPartyFinanceNotice(raw)) {
+        if (isObservedThirdPartyFinanceNotice(packageName, raw)) {
             return null;
         }
         if (isPromotionalOrQuotaNotice(raw) && !isGoldTradeNotice(raw) && !isTransitCardNotification(raw)) {
@@ -228,6 +231,10 @@ final class PaymentParser {
                 || "com.taobao.taobao".equals(packageName);
     }
 
+    private static boolean isJdFinancePackage(String packageName) {
+        return "com.jd.jrapp".equals(packageName);
+    }
+
     private static boolean isWechatIncomeReceipt(String raw) {
         return containsAny(raw, "红包已到账", "微信红包已到账", "收到红包", "转账已收款",
                 "收到转账", "收款到账", "已收款", "退款到账", "退回零钱");
@@ -280,13 +287,27 @@ final class PaymentParser {
                 && containsAny(raw, "成功", "确认", "成交", "买入", "卖出", "赎回");
     }
 
+    private static boolean isObservedThirdPartyFinanceNotice(String packageName, String raw) {
+        return isObservedThirdPartyFinanceNotice(raw)
+                || (isJdFinancePackage(packageName) && isJdObservedGoldNotice(raw));
+    }
+
     private static boolean isObservedThirdPartyFinanceNotice(String raw) {
         if (raw == null) {
             return false;
         }
         return OBSERVED_THIRD_PARTY_FINANCE_PATTERN.matcher(raw).find()
+                || OBSERVED_SOCIAL_FINANCE_PATTERN.matcher(raw).find()
                 || (containsAny(raw, "你关注的", "您关注的", "关注的@", "关注的人", "关注用户")
                 && containsAny(raw, "有1笔", "有一笔", "支付", "付款", "收入", "支出", "到账", "黄金", "黄金交易", "买入", "卖出", "买金", "卖金"));
+    }
+
+    private static boolean isJdObservedGoldNotice(String raw) {
+        if (raw == null || !containsAny(raw, "黄金", "黄金交易", "买金", "卖金", "购金")) {
+            return false;
+        }
+        return containsAny(raw, "关注", "好友", "达人", "社区", "动态", "订阅", "博主", "大V", "@",
+                "有1笔", "有一笔", "买入了", "卖出了", "购买了", "卖出了一笔");
     }
 
     private static boolean isPromotionalOrQuotaNotice(String raw) {
@@ -428,6 +449,8 @@ final class PaymentParser {
                 return "招商银行";
             case "com.czbank.mbank":
                 return "浙商银行";
+            case "com.jd.jrapp":
+                return "京东金融";
             default:
                 if (isGoldTradeNotice(raw)) {
                     return "浙商银行";
@@ -438,7 +461,7 @@ final class PaymentParser {
 
     static boolean isWatchedOrBankLike(String packageName, String rawText) {
         String raw = rawText == null ? "" : rawText;
-        if (isObservedThirdPartyFinanceNotice(raw)) {
+        if (isObservedThirdPartyFinanceNotice(packageName, raw)) {
             return false;
         }
         if (isPromotionalOrQuotaNotice(raw) && !isGoldTradeNotice(raw) && !isTransitCardNotification(raw)) {
