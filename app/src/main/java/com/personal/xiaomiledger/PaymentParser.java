@@ -450,7 +450,7 @@ final class PaymentParser {
             case "com.czbank.mbank":
                 return "浙商银行";
             case "com.jd.jrapp":
-                return "京东金融";
+                return isGoldTradeNotice(raw) ? "浙商银行" : "京东金融";
             default:
                 if (isGoldTradeNotice(raw)) {
                     return "浙商银行";
